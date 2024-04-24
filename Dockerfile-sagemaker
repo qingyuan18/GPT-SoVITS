@@ -1,0 +1,52 @@
+# Base CUDA image
+FROM cnstark/pytorch:2.0.1-py3.9.17-cuda11.8.0-ubuntu20.04
+
+ARG IMAGE_TYPE=sagemaker-byoc
+
+# set working dir
+RUN mkdir -p /opt/program
+RUN chmod 777 /opt/program
+
+# install sagemaker relevant libs
+RUN pip install --no-cache-dir  sagemaker
+RUN pip install sagemaker-ssh-helper
+RUN pip install boto3
+RUN pip3 install pydantic
+#RUN curl -L https://github.com/peak/s5cmd/releases/download/v2.2.2/s5cmd_2.2.2_Linux-64bit.tar.gz | tar -xz && mv s5cmd /opt/program/
+
+ENV PYTHONUNBUFFERED=TRUE
+ENV PYTHONDONTWRITEBYTECODE=TRUE
+ENV PATH="/opt/program:${PATH}"
+
+# Install 3rd party apps
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Etc/UTC
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends tzdata ffmpeg libsox-dev parallel aria2 git git-lfs && \
+    git lfs install && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy only requirements.txt initially to leverage Docker cache
+WORKDIR /opt/program
+
+RUN pip install --no-cache-dir -r /opt/program/GPT-SoVITS/requirements.txt
+
+# Define a build-time argument for image type
+ARG IMAGE_TYPE=full
+
+# Conditional logic based on the IMAGE_TYPE argument
+# Always copy the Docker directory, but only use it if IMAGE_TYPE is not "elite"
+COPY ./Docker /workspace/Docker 
+# elite 类型的镜像里面不包含额外的模型
+RUN if [ "$IMAGE_TYPE" != "elite" ]; then \
+        chmod +x /opt/program/GPT-SoVITS/Docker/download.sh && \
+        /opt/program/GPT-SoVITS/Docker/download.sh && \
+        python /opt/program/GPT-SoVITS/Docker/download.py && \
+        python -m nltk.downloader averaged_perceptron_tagger cmudict; \
+    fi
+
+
+#####start api.py ######
+RUN chmod 755 /opt/program
+RUN chmod 755 /opt/program/serve
+
