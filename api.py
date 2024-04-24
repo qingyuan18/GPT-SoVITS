@@ -147,6 +147,12 @@ import boto3
 import io
 
 
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sub_gpt_sovits_folder = os.path.join(current_dir, 'GPT_SoVITS')
+sys.path.append(sub_gpt_sovits_folder)
+
+
 class DefaultRefer:
     def __init__(self, path, text, language):
         self.path = args.default_refer_path
@@ -497,8 +503,8 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language)
         if stream_mode == "normal":
             audio_bytes, audio_chunk = read_clean_buffer(audio_bytes)
             yield audio_chunk
-    
-    if not stream_mode == "normal": 
+
+    if not stream_mode == "normal":
         if media_type == "wav":
             audio_bytes = pack_wav(audio_bytes,hps.data.sampling_rate)
         yield audio_bytes.getvalue()
