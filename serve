@@ -35,7 +35,7 @@ def _add_sigterm_handler(mms_process):
             pass
 
     signal.signal(signal.SIGTERM, _terminate)
-cmd = ["python","/opt/program/api.py","-dr","Brigida.wav","-dt","hi hello","-dl","zh","-a","0.0.0.0","-p","8080"]
+cmd = ["python","/opt/program/GPT_SoVITS/api.py","-dr","Brigida.wav","-dt","hi hello","-dl","zh","-a","0.0.0.0","-p","8080"]
 process = subprocess.Popen(cmd)
 process.wait()
 
