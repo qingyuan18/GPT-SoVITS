@@ -115,11 +115,15 @@ POST:
 RESP: 无
 
 """
+import os,re
+import sys
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sub_gpt_sovits_folder = os.path.join(current_dir, 'GPT_SoVITS')
+sys.path.append(sub_gpt_sovits_folder)
 
 
 import argparse
-import os,re
-import sys
 import signal
 import LangSegment
 from time import time as ttime
@@ -148,9 +152,7 @@ import io
 
 
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sub_gpt_sovits_folder = os.path.join(current_dir, 'GPT_SoVITS')
-sys.path.append(sub_gpt_sovits_folder)
+
 
 
 class DefaultRefer:
