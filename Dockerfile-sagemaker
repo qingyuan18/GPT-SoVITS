@@ -26,22 +26,23 @@ RUN apt-get update && \
     git lfs install && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy only requirements.txt initially to leverage Docker cache
+# Copy to leverage Docker cache
+COPY ./GPT-SoVITS /opt/program/
 WORKDIR /opt/program
 
-RUN pip install --no-cache-dir -r /opt/program/GPT-SoVITS/requirements.txt
+RUN pip install --no-cache-dir -r /opt/program/requirements.txt
 
 # Define a build-time argument for image type
 ARG IMAGE_TYPE=full
 
 # Conditional logic based on the IMAGE_TYPE argument
 # Always copy the Docker directory, but only use it if IMAGE_TYPE is not "elite"
-COPY ./Docker /workspace/Docker 
+COPY ./Docker /workspace/Docker
 # elite 类型的镜像里面不包含额外的模型
 RUN if [ "$IMAGE_TYPE" != "elite" ]; then \
-        chmod +x /opt/program/GPT-SoVITS/Docker/download.sh && \
-        /opt/program/GPT-SoVITS/Docker/download.sh && \
-        python /opt/program/GPT-SoVITS/Docker/download.py && \
+        chmod +x /opt/program/Docker/download.sh && \
+        /opt/program/Docker/download.sh && \
+        python /opt/program/Docker/download.py && \
         python -m nltk.downloader averaged_perceptron_tagger cmudict; \
     fi
 
