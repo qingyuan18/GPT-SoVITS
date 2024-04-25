@@ -674,8 +674,8 @@ logger.info(f"编码格式: {media_type}")
 
 # 初始化模型
 cnhubert.cnhubert_base_path = cnhubert_base_path
-tokenizer = AutoTokenizer.from_pretrained("/opt/program/"+bert_path)
-bert_model = AutoModelForMaskedLM.from_pretrained("/opt/program/"+bert_path)
+tokenizer = AutoTokenizer.from_pretrained("/workspace/"+bert_path)
+bert_model = AutoModelForMaskedLM.from_pretrained("/workspace/"+bert_path)
 ssl_model = cnhubert.get_model()
 if is_half:
     bert_model = bert_model.half().to(device)
