@@ -683,8 +683,8 @@ if is_half:
 else:
     bert_model = bert_model.to(device)
     ssl_model = ssl_model.to(device)
-change_sovits_weights(sovits_path)
-change_gpt_weights(gpt_path)
+change_sovits_weights("/workspace/"+sovits_path)
+change_gpt_weights("/workspace/"+gpt_path)
 
 
 
