@@ -708,7 +708,7 @@ async def invocations(request: Request):
     opt=parse_obj_as(InferenceOpt,json_post_raw)
     print(f"invocations {opt=}")
     audio_bytes_values = get_tts_wav(opt.refer_wav_path, opt.prompt_text, opt.prompt_language, opt.text, opt.text_language)
-    return write_wav_to_s3(audio_bytes_values,opt.output_s3uri)
+    return write_wav_to_s3(next(audio_bytes_values),opt.output_s3uri)
     
 
 @app.post("/set_model")
