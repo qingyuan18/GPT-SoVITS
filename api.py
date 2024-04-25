@@ -704,7 +704,7 @@ async def ping():
 @app.post("/invocations")
 async def invocations(request: Request):
     json_post_raw = await request.json()
-    print(f"invocations {body=}")
+    print(f"invocations {json_post_raw=}")
     opt=parse_obj_as(InferenceOpt,json_post_raw)
     print(f"invocations {opt=}")
     audio_bytes_values = get_tts_wav(opt.ref_wav_path, opt.prompt_text, opt.prompt_language, opt.text, opt.text_language)
