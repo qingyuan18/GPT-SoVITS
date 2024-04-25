@@ -694,7 +694,7 @@ change_gpt_weights("/workspace/"+gpt_path)
 # --------------------------------
 app = FastAPI()
 
-@app.post("/ping")
+@app.get("/ping")
 async def ping(request):
     """
     ping /ping func
