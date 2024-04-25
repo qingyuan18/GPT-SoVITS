@@ -20,6 +20,7 @@ import os
 import subprocess
 import signal
 import uvicorn
+import sys
 
 #    ###for debug only#######
 sys.path.append(os.path.join(os.path.dirname(__file__), "lib"))
