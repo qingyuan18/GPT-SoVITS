@@ -1,4 +1,4 @@
-algorithm_name=GPT-SoVITS-inference
+algorithm_name=gpt-sovits-inference
 
 account=$(aws sts get-caller-identity --query Account --output text)
 
@@ -12,6 +12,7 @@ fullname="${account}.dkr.ecr.${region}.amazonaws.com/${algorithm_name}:latest"
 aws ecr describe-repositories --repository-names "${algorithm_name}" > /dev/null 2>&1
 if [ $? -ne 0 ]
 then
+echo "create repository:" "${algorithm_name}"
 aws ecr create-repository --repository-name "${algorithm_name}" > /dev/null
 fi
 
