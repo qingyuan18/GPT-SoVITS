@@ -609,7 +609,7 @@ parser.add_argument("-fp", "--full_precision", action="store_true", default=Fals
 parser.add_argument("-hp", "--half_precision", action="store_true", default=False, help="覆盖config.is_half为True, 使用半精度")
 # bool值的用法为 `python ./api.py -fp ...`
 # 此时 full_precision==True, half_precision==False
-parser.add_argument("-sm", "--stream_mode", type=str, default="close", help="流式返回模式, close / normal / keepalive")
+parser.add_argument("-sm", "--stream_mode", type=str, default="normal", help="流式返回模式, close / normal / keepalive")
 parser.add_argument("-mt", "--media_type", type=str, default="wav", help="音频编码格式, wav / ogg / aac")
 parser.add_argument("-cp", "--cut_punc", type=str, default="", help="文本切分符号设定, 符号范围,.;?!、，。？！；：…")
 # 切割常用分句符为 `python ./api.py -cp ".?!。？！"`
@@ -673,9 +673,9 @@ else:
 logger.info(f"编码格式: {media_type}")
 
 # 初始化模型
-cnhubert.cnhubert_base_path = "/workspace/"+cnhubert_base_path
-tokenizer = AutoTokenizer.from_pretrained("/workspace/"+bert_path)
-bert_model = AutoModelForMaskedLM.from_pretrained("/workspace/"+bert_path)
+cnhubert.cnhubert_base_path = cnhubert_base_path
+tokenizer = AutoTokenizer.from_pretrained(bert_path)
+bert_model = AutoModelForMaskedLM.from_pretrained(bert_path)
 ssl_model = cnhubert.get_model()
 if is_half:
     bert_model = bert_model.half().to(device)
@@ -683,8 +683,8 @@ if is_half:
 else:
     bert_model = bert_model.to(device)
     ssl_model = ssl_model.to(device)
-change_sovits_weights("/workspace/"+sovits_path)
-change_gpt_weights("/workspace/"+gpt_path)
+change_sovits_weights(sovits_path)
+change_gpt_weights(gpt_path)
 
 
 
@@ -694,21 +694,20 @@ change_gpt_weights("/workspace/"+gpt_path)
 # --------------------------------
 app = FastAPI()
 
-@app.get("/ping")
-async def ping():
+@app.post("/ping")
+async def ping(request):
     """
     ping /ping func
     """
     return {"message": "ok"}
 
 @app.post("/invocations")
-async def invocations(request: Request):
+async def invocations(request):
     json_post_raw = await request.json()
-    print(f"invocations {json_post_raw=}")
-    opt=parse_obj_as(InferenceOpt,json_post_raw)
+    print(f"invocations {body=}")
+    opt=parse_obj_as(InferenceOpt,body)
     print(f"invocations {opt=}")
-    audio_bytes_values = get_tts_wav(opt.refer_wav_path, opt.prompt_text, opt.prompt_language, opt.text, opt.text_language)
-    return write_wav_to_s3(next(audio_bytes_values),opt.output_s3uri)
+    return handle(refer_wav_path, prompt_text, prompt_language, text, text_language, cut_punc)
     
 
 @app.post("/set_model")

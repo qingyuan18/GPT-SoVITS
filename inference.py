@@ -3,7 +3,7 @@ import json
 import urllib.request
 import urllib.parse
 import base64
-from pydantic import BaseModel, Field, parse_obj_as
+from pydantic import BaseModel, Field
 from PIL import Image
 import io
 import sys
@@ -52,6 +52,7 @@ class InferenceOpt(BaseModel):
     refer_wav_path: str = "",
     prompt_text: str = "",
     prompt_language:str = "zh",
-    text:str = "my queue, my love ,my wife。",
+    text:str = "my queue, my love ,my wife.",
     text_language :str = "zh"
     output_s3uri:str = "s3://sagemaker-us-west-2-687912291502/gpt_sovits_output/wav/"
+    cut_punc:str = "."
