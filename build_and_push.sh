@@ -24,7 +24,7 @@ pwd=$(aws ecr get-login-password --region ${region})
 docker login --username AWS -p ${pwd} ${account}.dkr.ecr.${region}.amazonaws.com
 
 
-git clone -b stream https://github.com/qingyuan18/GPT-SoVITS.git
+git clone -b streams https://github.com/qingyuan18/GPT-SoVITS.git
 docker build -t ${algorithm_name}  ./ -f ./Dockerfile-sagemaker
 docker tag ${algorithm_name} ${fullname}
 docker push ${fullname}

@@ -707,7 +707,7 @@ async def invocations(request):
     print(f"invocations {body=}")
     opt=parse_obj_as(InferenceOpt,body)
     print(f"invocations {opt=}")
-    return handle(refer_wav_path, prompt_text, prompt_language, text, text_language, cut_punc)
+    return handle(opt.refer_wav_path, opt.prompt_text, opt.prompt_language, opt.text, opt.text_language, opt.cut_punc)
     
 
 @app.post("/set_model")
