@@ -702,7 +702,7 @@ async def ping():
     return {"message": "ok"}
 
 @app.post("/invocations")
-async def invocations(request):
+async def invocations(request: Request):
     json_post_raw = await request.json()
     print(f"invocations {body=}")
     opt=parse_obj_as(InferenceOpt,body)
