@@ -504,7 +504,9 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language)
     # logger.info("%.3f\t%.3f\t%.3f\t%.3f" % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
         if stream_mode == "normal":
             audio_bytes, audio_chunk = read_clean_buffer(audio_bytes)
-            yield audio_chunk
+            chunk_len = len(audio_chunk)
+            yield f"{chunk_len:X}\r\n".encode() + audio_chunk + b"\r\n"
+            #yield audio_chunk
 
     if not stream_mode == "normal":
         if media_type == "wav":
