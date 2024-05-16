@@ -3,7 +3,7 @@ import json
 import urllib.request
 import urllib.parse
 import base64
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, parse_obj_as
 from PIL import Image
 import io
 import sys
