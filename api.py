@@ -503,12 +503,17 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
         audio_bytes = pack_audio(audio_bytes,(np.concatenate(audio_opt, 0) * 32768).astype(np.int16),hps.data.sampling_rate)
     # logger.info("%.3f\t%.3f\t%.3f\t%.3f" % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
         if stream_mode == "normal":
-            audio_bytes, audio_chunk = read_clean_buffer(audio_bytes)
-            chunk_len = len(audio_chunk)
-            print("chunk text",text)
-            print("chunk_len",str(chunk_len))
+            ##opt1: yield chunked ogg binary bytes (TBD by sagemaker Service team)
+            #audio_bytes, audio_chunk = read_clean_buffer(audio_bytes)
+            #chunk_len = len(audio_chunk)
+            #print("chunk text",text)
+            #print("chunk_len",str(chunk_len))
             #yield f"{chunk_len:X}\r\n".encode() + audio_chunk + b"\r\n"
-            yield write_wav_to_s3(audio_chunk,output_s3uri)
+
+            ##opt2: pack indivitual wav ,write to s3 first , and return s3 file path
+            chunked_audio = pack_wav(audio_bytes,hps.data.sampling_rate)
+            result = write_wav_to_s3(chunked_audio.getvalue(),output_s3uri)
+            yield json.dumps(result)
 
     if not stream_mode == "normal":
         if media_type == "wav":
