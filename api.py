@@ -565,7 +565,7 @@ def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, cu
         text = cut_text(text,cut_punc)
 
     #return StreamingResponse(get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,None), media_type="audio/"+media_type)
-    return StreamingResponse(get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,output_s3uri), media_type="application/json“)
+    return StreamingResponse(get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,output_s3uri), media_type="application/json")
     #return get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,None)
 
 
