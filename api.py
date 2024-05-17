@@ -545,7 +545,7 @@ def handle_change(path, text, language):
     return JSONResponse({"code": 0, "message": "Success"}, status_code=200)
 
 
-def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, cut_punc):
+def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, cut_punc, output_s3uri):
     if (
             refer_wav_path == "" or refer_wav_path is None
             or prompt_text == "" or prompt_text is None
@@ -564,8 +564,8 @@ def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, cu
     else:
         text = cut_text(text,cut_punc)
 
-    return StreamingResponse(get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,None), media_type="audio/"+media_type)
-    #return StreamingResponse(get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,None), media_type="application/json“)
+    #return StreamingResponse(get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,None), media_type="audio/"+media_type)
+    return StreamingResponse(get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,output_s3uri), media_type="application/json“)
     #return get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,None)
 
 
@@ -712,7 +712,8 @@ async def invocations(request: Request):
     print(f"invocations {json_post_raw=}")
     opt=parse_obj_as(InferenceOpt,json_post_raw)
     print(f"invocations {opt=}")
-    return get_tts_wav(opt.refer_wav_path, opt.prompt_text, opt.prompt_language, opt.text, opt.text_language, opt.output_s3uri)
+    return handle(opt.refer_wav_path, opt.prompt_text, opt.prompt_language, opt.text, opt.text_language, opt.output_s3uri)
+    #return get_tts_wav(opt.refer_wav_path, opt.prompt_text, opt.prompt_language, opt.text, opt.text_language, opt.output_s3uri)
     
 
 @app.post("/set_model")
@@ -768,6 +769,7 @@ async def tts_endpoint(request: Request):
         json_post_raw.get("text"),
         json_post_raw.get("text_language"),
         json_post_raw.get("cut_punc"),
+        None
     )
 
 
@@ -780,7 +782,7 @@ async def tts_endpoint(
         text_language: str = None,
         cut_punc: str = None,
 ):
-    return handle(refer_wav_path, prompt_text, prompt_language, text, text_language, cut_punc)
+    return handle(refer_wav_path, prompt_text, prompt_language, text, text_language, cut_punc,None)
 
 
 if __name__ == "__main__":
