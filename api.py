@@ -433,7 +433,7 @@ def pre_download(ref_wav_path:str)-> None:
     else:
         return ref_wav_path
 
-def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language):
+def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,output_s3uri):
     ref_wav_path = pre_download(ref_wav_path)
     t0 = ttime()
     prompt_text = prompt_text.strip("\n")
@@ -508,7 +508,7 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language)
             print("chunk text",text)
             print("chunk_len",str(chunk_len))
             #yield f"{chunk_len:X}\r\n".encode() + audio_chunk + b"\r\n"
-            yield audio_chunk
+            yield write_wav_to_s3(audio_chunk,output_s3uri)
 
     if not stream_mode == "normal":
         if media_type == "wav":
@@ -564,8 +564,9 @@ def handle(refer_wav_path, prompt_text, prompt_language, text, text_language, cu
     else:
         text = cut_text(text,cut_punc)
 
-    #return StreamingResponse(get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language), media_type="audio/"+media_type)
-    return get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language)
+    return StreamingResponse(get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,None), media_type="audio/"+media_type)
+    #return StreamingResponse(get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,None), media_type="application/json“)
+    #return get_tts_wav(refer_wav_path, prompt_text, prompt_language, text, text_language,None)
 
 
 
@@ -711,7 +712,7 @@ async def invocations(request: Request):
     print(f"invocations {json_post_raw=}")
     opt=parse_obj_as(InferenceOpt,json_post_raw)
     print(f"invocations {opt=}")
-    return handle(opt.refer_wav_path, opt.prompt_text, opt.prompt_language, opt.text, opt.text_language, opt.cut_punc)
+    return get_tts_wav(opt.refer_wav_path, opt.prompt_text, opt.prompt_language, opt.text, opt.text_language, opt.cut_punc, opt.output_s3uri)
     
 
 @app.post("/set_model")
