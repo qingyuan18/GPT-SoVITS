@@ -66,6 +66,7 @@ from time import time as ttime
 from module.mel_processing import spectrogram_torch
 from my_utils import load_audio
 from tools.i18n.i18n import I18nAuto
+from tools.SageMakerClient import *
 
 i18n = I18nAuto()
 
@@ -310,6 +311,33 @@ def merge_short_text_in_array(texts, threshold):
         else:
             result[len(result) - 1] += text
     return result
+
+def convert_wav_to_bytes(wav_path):
+    with open(wav_path, 'rb') as f:
+        wav_bytes = f.read()
+    return wav_bytes
+
+def get_tts_wav_warper(ref_wav_path, prompt_text, prompt_language,
+                       text, text_language, how_to_cut=i18n("不切"),
+                       top_k=20, top_p=0.6, temperature=0.6, ref_free = False,
+                       use_sagemaker=True, sagemaker_endpoint_name="", sagemaker_output_path=""):
+    if use_sagemaker:
+        client=ModelClient()
+        client.set_endpoint(sagemaker_endpoint_name)
+        request = {"refer_wav_path":ref_wav_path,
+            "prompt_text": prompt_text,
+            "prompt_language":prompt_language,
+            "text":text,
+            "text_language" :text_language,
+            "output_s3uri":sagemaker_output_path}
+        client.invoke_endpoint(request)
+        wavDownloadlocalPath = client.download_wav_from_s3(sagemaker_output_path)
+        wav_bytes = convert_wav_to_bytes(wavDownloadlocalPath)
+        return wav_bytes
+    else:
+        return get_tts_wav(ref_wav_path, prompt_text, prompt_language,
+                                           text, text_language, how_to_cut,
+                                           top_k, top_p, temperature, ref_free)
 
 def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language, how_to_cut=i18n("不切"), top_k=20, top_p=0.6, temperature=0.6, ref_free = False):
     if prompt_text is None or len(prompt_text) == 0:
@@ -591,11 +619,21 @@ with gr.Blocks(title="GPT-SoVITS WebUI") as app:
             inference_button = gr.Button(i18n("合成语音"), variant="primary")
             output = gr.Audio(label=i18n("输出的语音"))
 
+        #inference_button.click(
+        #    get_tts_wav,
+        #    [inp_ref, prompt_text, prompt_language, text, text_language, how_to_cut, top_k, top_p, temperature, ref_text_free],
+        #    [output],
+        #)
         inference_button.click(
-            get_tts_wav,
-            [inp_ref, prompt_text, prompt_language, text, text_language, how_to_cut, top_k, top_p, temperature, ref_text_free],
-            [output],
+                    get_tts_wav_warper,
+                    [inp_ref, prompt_text, prompt_language, text, text_language, how_to_cut, top_k, top_p, temperature, ref_text_free,use_sagemaker,sagemaker_endpoint_name,sagemaker_output_path],
+                    [output],
         )
+
+        with gr.Row():
+            use_sagemaker = gr.Checkbox(label=i18n("是否使用sagemaker endpoint"), value=False)
+            sagemaker_endpoint_name = gr.Textbox(label=i18n("sagemaker endpoint name"), interactive=False)
+            sagemaker_output_path = gr.Textbox(label=i18n("sagemaker 推理输出s3路径"), interactive=False)
 
         gr.Markdown(value=i18n("文本切分工具。太长的文本合成出来效果不一定好，所以太长建议先切。合成会根据文本的换行分开合成再拼起来。"))
         with gr.Row():
