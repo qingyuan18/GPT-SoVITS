@@ -333,9 +333,9 @@ def get_tts_wav_warper(ref_wav_path, prompt_text, prompt_language,
         client.invoke_endpoint(request)
         wavDownloadlocalPath = client.download_wav_from_s3(sagemaker_output_path)
         wav_bytes = convert_wav_to_bytes(wavDownloadlocalPath)
-        return wav_bytes
+        yield wav_bytes
     else:
-        return get_tts_wav(ref_wav_path, prompt_text, prompt_language,
+        yield from get_tts_wav(ref_wav_path, prompt_text, prompt_language,
                                            text, text_language, how_to_cut,
                                            top_k, top_p, temperature, ref_free)
 
