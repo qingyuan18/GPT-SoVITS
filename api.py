@@ -678,7 +678,10 @@ if args.media_type.lower() in ["aac","ogg"]:
 elif stream_mode == "close":
     media_type = "wav"
 else:
-    media_type = "ogg"
+    #media_type = "ogg"
+    #change stream mode also use wav
+    #as sagemaker return packed audio file on s3 path
+    media_type = "wav"
 logger.info(f"编码格式: {media_type}")
 
 # 初始化模型
