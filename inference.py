@@ -38,6 +38,7 @@ def write_wav_to_s3(audio_bytes_values,output_s3uri=""):
     key = f'{key}gpt_sovits_{int(time.time())}.wav'
     #file_obj = io.BytesIO(audio_bytes_values)
     file_obj = audio_bytes_values
+    file_obj.seek(0)
     s3_client.upload_fileobj(
             Fileobj=file_obj,
             Bucket=bucket,
