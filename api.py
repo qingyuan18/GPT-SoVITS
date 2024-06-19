@@ -358,7 +358,8 @@ def pack_raw(audio_bytes, data, rate):
 
 
 def pack_wav(audio_bytes, rate):
-    data = np.frombuffer(audio_bytes.getvalue(),dtype=np.int16)
+    #data = np.frombuffer(audio_bytes.getvalue(),dtype=np.int16)
+    data = np.frombuffer(audio_bytes,dtype=np.int16)
     wav_bytes = BytesIO()
     sf.write(wav_bytes, data, rate, format='wav')
 
