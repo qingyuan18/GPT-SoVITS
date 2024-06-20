@@ -365,6 +365,13 @@ def pack_wav(audio_bytes, rate):
 
     return wav_bytes
 
+def pack_mp3(audio_bytes, rate):
+    #data = np.frombuffer(audio_bytes.getvalue(),dtype=np.int16)
+    data = np.frombuffer(audio_bytes,dtype=np.int16)
+    mp3_bytes = BytesIO()
+    sf.write(mp3_bytes, data, rate, format='mp3')
+
+    return mp3_bytes
 
 def pack_aac(audio_bytes, data, rate):
     process = subprocess.Popen([
@@ -512,7 +519,8 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
             #yield chunked_audio_bytes
 
             ##opt2: pack indivitual audio ,write to s3 first , and return s3 file path
-            chunked_audio_bytes = pack_wav(chunked_audio_bytes,hps.data.sampling_rate)
+            #chunked_audio_bytes = pack_wav(chunked_audio_bytes,hps.data.sampling_rate)
+            chunked_audio_bytes = pack_mp3(chunked_audio_bytes,hps.data.sampling_rate)
             #print("here1===")
             #print(len(chunked_audio_bytes.getvalue()))
             result = write_wav_to_s3(chunked_audio_bytes,output_s3uri)

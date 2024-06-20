@@ -30,12 +30,12 @@ def write_wav_to_s3(audio_bytes_values,output_s3uri=""):
     s3_client = boto3.client('s3')
     s3_bucket = os.environ.get("s3_bucket", "sagemaker-us-west-2-687912291502")
     prediction ={}
-    default_output_s3uri = f's3://{s3_bucket}/gpt_sovits_output/wav/'
+    default_output_s3uri = f's3://{s3_bucket}/gpt_sovits_output/audio/'
     if output_s3uri is None or output_s3uri=="":
         output_s3uri=default_output_s3uri    
     
     bucket, key = get_bucket_and_key(output_s3uri)
-    key = f'{key}gpt_sovits_{int(time.time())}.wav'
+    key = f'{key}gpt_sovits_{int(time.time())}.mp3'
     #file_obj = io.BytesIO(audio_bytes_values)
     file_obj = audio_bytes_values
     file_obj.seek(0)
