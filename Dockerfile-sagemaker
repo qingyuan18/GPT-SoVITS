@@ -43,7 +43,7 @@ RUN if [ "$IMAGE_TYPE" != "elite" ]; then \
         chmod +x /opt/program/Docker/download.sh && \
         /opt/program/Docker/download.sh && \
         python /opt/program/Docker/download.py && \
-        python -m nltk.downloader averaged_perceptron_tagger cmudict; \
+        python -m nltk.downloader all; \
     fi
 
 
