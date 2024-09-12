@@ -194,7 +194,7 @@ def change_sovits_weights(sovits_path):
     )
     if ("pretrained" not in sovits_path):
         del vq_model.enc_q
-    if is_half == True:
+    if is_half:
         vq_model = vq_model.half().to(device)
     else:
         vq_model = vq_model.to(device)
@@ -210,7 +210,7 @@ def change_gpt_weights(gpt_path):
     max_sec = config["data"]["max_sec"]
     t2s_model = Text2SemanticLightningModule(config, "****", is_train=False)
     t2s_model.load_state_dict(dict_s1["weight"])
-    if is_half == True:
+    if is_half:
         t2s_model = t2s_model.half()
     t2s_model = t2s_model.to(device)
     t2s_model.eval()
@@ -219,7 +219,7 @@ def change_gpt_weights(gpt_path):
 
 
 def get_bert_feature(text, word2ph):
-    with torch.no_grad():
+    with torch.inference_mode():
         inputs = tokenizer(text, return_tensors="pt")
         for i in inputs:
             inputs[i] = inputs[i].to(device)  #####输入是long不用管精度问题，精度随bert_model
@@ -248,7 +248,7 @@ def get_bert_inf(phones, word2ph, norm_text, language):
     else:
         bert = torch.zeros(
             (1024, len(phones)),
-            dtype=torch.float16 if is_half == True else torch.float32,
+            dtype=torch.float16 if is_half else torch.float32,
         ).to(device)
 
     return bert
@@ -271,7 +271,7 @@ def get_phones_and_bert(text,language):
         else:
             bert = torch.zeros(
                 (1024, len(phones)),
-                dtype=torch.float16 if is_half == True else torch.float32,
+                dtype=torch.float16 if is_half else torch.float32,
             ).to(device)
     elif language in {"zh", "ja","auto"}:
         textlist=[]
@@ -309,7 +309,7 @@ def get_phones_and_bert(text,language):
         phones = sum(phones_list, [])
         norm_text = ''.join(norm_text_list)
 
-    return phones,bert.to(torch.float16 if is_half == True else torch.float32),norm_text
+    return phones,bert.to(torch.float16 if is_half else torch.float32),norm_text
 
 
 class DictToAttrRecursive:
@@ -446,12 +446,15 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
     t0 = ttime()
     prompt_text = prompt_text.strip("\n")
     prompt_language, text = prompt_language, text.strip("\n")
-    zero_wav = np.zeros(int(hps.data.sampling_rate * 0.3), dtype=np.float16 if is_half == True else np.float32)
-    with torch.no_grad():
+    zero_wav = np.zeros(int(hps.data.sampling_rate * 0.3), dtype=np.float16 if is_half else np.float32)
+
+    frame_bytes_10ms = hps.data.sampling_rate * 1 * 2 // 100 # sample_rate * channel_num * bytes_per_sample // 100
+
+    with torch.inference_mode():
         wav16k, sr = librosa.load(ref_wav_path, sr=16000)
         wav16k = torch.from_numpy(wav16k)
         zero_wav_torch = torch.from_numpy(zero_wav)
-        if (is_half == True):
+        if is_half:
             wav16k = wav16k.half().to(device)
             zero_wav_torch = zero_wav_torch.half().to(device)
         else:
@@ -482,7 +485,7 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
         all_phoneme_len = torch.tensor([all_phoneme_ids.shape[-1]]).to(device)
         prompt = prompt_semantic.unsqueeze(0).to(device)
         t2 = ttime()
-        with torch.no_grad():
+        with torch.inference_mode():
             # pred_semantic = t2s_model.model.infer(
             pred_semantic, idx = t2s_model.model.infer_panel(
                 all_phoneme_ids,
@@ -496,7 +499,7 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
         # print(pred_semantic.shape,idx)
         pred_semantic = pred_semantic[:, -idx:].unsqueeze(0)  # .unsqueeze(0)#mq要多unsqueeze一次
         refer = get_spepc(hps, ref_wav_path)  # .to(device)
-        if (is_half == True):
+        if is_half:
             refer = refer.half().to(device)
         else:
             refer = refer.to(device)
@@ -508,15 +511,18 @@ def get_tts_wav(ref_wav_path, prompt_text, prompt_language, text, text_language,
         audio_opt.append(audio)
         audio_opt.append(zero_wav)
         t4 = ttime()
-        audio_bytes = pack_audio(audio_bytes,(np.concatenate(audio_opt, 0) * 32768).astype(np.int16),hps.data.sampling_rate)
-    # logger.info("%.3f\t%.3f\t%.3f\t%.3f" % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
+        audio_bytes = pack_audio(audio_bytes,(np.concatenate(audio_opt, 0) * 32768).astype(np.int16), hps.data.sampling_rate)
+        # logger.info("%.3f\t%.3f\t%.3f\t%.3f" % (t1 - t0, t2 - t1, t3 - t2, t4 - t3))
         if stream_mode == "normal":
             audio_bytes, chunked_audio_bytes = read_clean_buffer(audio_bytes)
             ##opt1: yield chunked ogg binary bytes (TBD by sagemaker Service team)
-            chunk_len = len(chunked_audio_bytes)
-            print("chunk text",text)
-            print("chunk_len",len(chunked_audio_bytes))
-            yield chunked_audio_bytes
+
+            print("chunk text: ",text)
+            print("sub_chunk_len: ",frame_bytes_10ms)
+            # loop chunked_audio_bytes every frame_bytes_10ms, ensure this will not exceed 8k
+            for i in range(0, len(chunked_audio_bytes), frame_bytes_10ms):
+                chunk = chunked_audio_bytes[i:i + frame_bytes_10ms]
+                yield chunk
 
             ##opt2: pack indivitual audio ,write to s3 first , and return s3 file path
             #chunked_audio_bytes = pack_wav(chunked_audio_bytes,hps.data.sampling_rate)
