@@ -24,6 +24,6 @@ PyYAML
 psutil
 jieba_fast
 jieba
-LangSegment>=0.2.0
+#-e git+https://github.com/ishine/LangSegment@0d767c3867d6f59aaa886088debc473777b74a28#egg=LangSegment
 Faster_Whisper
 wordsegment

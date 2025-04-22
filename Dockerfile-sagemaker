@@ -31,6 +31,11 @@ COPY ./GPT-SoVITS /opt/program/
 WORKDIR /opt/program
 
 RUN pip install --no-cache-dir -r /opt/program/requirements.txt
+RUN git clone https://github.com/ishine/LangSegment.git
+RUN cd LangSegment && pip install .
+
+## reverse numpy version to avoid confilict
+RUN pip install numpy==1.23.5
 
 # Define a build-time argument for image type
 ARG IMAGE_TYPE=full
