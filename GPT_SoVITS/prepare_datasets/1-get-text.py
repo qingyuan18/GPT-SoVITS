@@ -7,18 +7,19 @@ inp_wav_dir = os.environ.get("inp_wav_dir")
 exp_name = os.environ.get("exp_name")
 i_part = os.environ.get("i_part")
 all_parts = os.environ.get("all_parts")
-os.environ["CUDA_VISIBLE_DEVICES"] = os.environ.get("_CUDA_VISIBLE_DEVICES")
+if "_CUDA_VISIBLE_DEVICES" in os.environ:
+    os.environ["CUDA_VISIBLE_DEVICES"] = os.environ["_CUDA_VISIBLE_DEVICES"]
 opt_dir = os.environ.get("opt_dir")
 bert_pretrained_dir = os.environ.get("bert_pretrained_dir")
-is_half = eval(os.environ.get("is_half", "True"))
-import sys, numpy as np, traceback, pdb
-import os.path
-from glob import glob
-from tqdm import tqdm
-from text.cleaner import clean_text
 import torch
+
+is_half = eval(os.environ.get("is_half", "True")) and torch.cuda.is_available()
+version = os.environ.get("version", None)
+import traceback
+import os.path
+from text.cleaner import clean_text
 from transformers import AutoModelForMaskedLM, AutoTokenizer
-import numpy as np
+from tools.my_utils import clean_path
 
 # inp_text=sys.argv[1]
 # inp_wav_dir=sys.argv[2]
@@ -33,13 +34,13 @@ from time import time as ttime
 import shutil
 
 
-def my_save(fea,path):#####fix issue: torch.save doesn't support chinese path
-    dir=os.path.dirname(path)
-    name=os.path.basename(path)
+def my_save(fea, path):  #####fix issue: torch.save doesn't support chinese path
+    dir = os.path.dirname(path)
+    name = os.path.basename(path)
     # tmp_path="%s/%s%s.pth"%(dir,ttime(),i_part)
-    tmp_path="%s%s.pth"%(ttime(),i_part)
-    torch.save(fea,tmp_path)
-    shutil.move(tmp_path,"%s/%s"%(dir,name))
+    tmp_path = "%s%s.pth" % (ttime(), i_part)
+    torch.save(fea, tmp_path)
+    shutil.move(tmp_path, "%s/%s" % (dir, name))
 
 
 txt_path = "%s/2-name2text-%s.txt" % (opt_dir, i_part)
@@ -53,6 +54,10 @@ if os.path.exists(txt_path) == False:
     #     device = "mps"
     else:
         device = "cpu"
+    if os.path.exists(bert_pretrained_dir):
+        ...
+    else:
+        raise FileNotFoundError(bert_pretrained_dir)
     tokenizer = AutoTokenizer.from_pretrained(bert_pretrained_dir)
     bert_model = AutoModelForMaskedLM.from_pretrained(bert_pretrained_dir)
     if is_half == True:
@@ -81,10 +86,10 @@ if os.path.exists(txt_path) == False:
     def process(data, res):
         for name, text, lan in data:
             try:
+                name = clean_path(name)
                 name = os.path.basename(name)
-                phones, word2ph, norm_text = clean_text(
-                    text.replace("%", "-").replace("￥", ","), lan
-                )
+                print(name)
+                phones, word2ph, norm_text = clean_text(text.replace("%", "-").replace("￥", ","), lan, version)
                 path_bert = "%s/%s.pt" % (bert_dir, name)
                 if os.path.exists(path_bert) == False and lan == "zh":
                     bert_feature = get_bert_feature(norm_text, word2ph)
@@ -112,14 +117,21 @@ if os.path.exists(txt_path) == False:
         "EN": "en",
         "en": "en",
         "En": "en",
+        "KO": "ko",
+        "Ko": "ko",
+        "ko": "ko",
+        "yue": "yue",
+        "YUE": "yue",
+        "Yue": "yue",
     }
     for line in lines[int(i_part) :: int(all_parts)]:
         try:
             wav_name, spk_name, language, text = line.split("|")
             # todo.append([name,text,"zh"])
-            todo.append(
-                [wav_name, text, language_v1_to_language_v2.get(language, language)]
-            )
+            if language in language_v1_to_language_v2.keys():
+                todo.append([wav_name, text, language_v1_to_language_v2.get(language, language)])
+            else:
+                print(f"\033[33m[Waring] The {language = } of {wav_name} is not supported for training.\033[0m")
         except:
             print(line, traceback.format_exc())
 
