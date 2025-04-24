@@ -22,7 +22,7 @@ ENV PATH="/opt/program:${PATH}"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends tzdata ffmpeg libsox-dev parallel aria2 git git-lfs && \
+    apt-get install -y --no-install-recommends tzdata ffmpeg libsox-dev parallel aria2 git git-lfs unzip && \
     git lfs install && \
     rm -rf /var/lib/apt/lists/*
 
@@ -30,14 +30,14 @@ RUN apt-get update && \
 COPY ./GPT-SoVITS /opt/program/
 WORKDIR /opt/program
 
-RUN pip install --no-cache-dir -r /opt/program/requirements.txt
+#RUN pip install --no-cache-dir -r /opt/program/requirements.txt
 
 # Define a build-time argument for image type
 ARG IMAGE_TYPE=full
 
 
 ## v4新版本用install.sh下载模型（注意目录结构，原社区里面比较乱，需要自己改脚本....)
-bash /opt/program/install.sh
+RUN bash /opt/program/install_without_conda.sh  --source HF --download-uvr5
 
 # Conditional logic based on the IMAGE_TYPE argument
 # Always copy the Docker directory, but only use it if IMAGE_TYPE is not "elite"

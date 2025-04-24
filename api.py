@@ -538,7 +538,7 @@ class DictToAttrRecursive(dict):
 
 
 def get_spepc(hps, filename):
-    audio, _ = librosa.load(filename, int(hps.data.sampling_rate))
+    audio, _ = librosa.load(filename, sr=int(hps.data.sampling_rate))
     audio = torch.FloatTensor(audio)
     maxx = audio.abs().max()
     if maxx > 1:
@@ -1026,6 +1026,7 @@ def handle(
             inp_refs,
             sample_steps,
             if_sr,
+            "default",
             output_s3uri
         ),
         media_type="audio/" + media_type,
@@ -1192,7 +1193,20 @@ async def invocations(request: Request):
     print(f"invocations {json_post_raw=}")
     opt=parse_obj_as(InferenceOpt,json_post_raw)
     print(f"invocations {opt=}")
-    return handle(opt.refer_wav_path, opt.prompt_text, opt.prompt_language, opt.text,  opt.text_language,opt.cut_punc, opt.output_s3uri)
+    return handle(refer_wav_path=opt.refer_wav_path, 
+                  prompt_text=opt.prompt_text, 
+                  prompt_language=opt.prompt_language, 
+                  text=opt.text,
+                  text_language=opt.text_language,
+                  cut_punc=opt.cut_punc,
+                  top_k=opt.top_k,
+                  top_p=opt.top_p,
+                  temperature=opt.temperature,
+                  speed=opt.speed,
+                  inp_refs=None,
+                  sample_steps=opt.sample_steps,
+                  if_sr=False,
+                  output_s3uri=opt.output_s3uri)
 ## sagemaker 适配 end
 
 

@@ -51,10 +51,15 @@ def write_wav_to_s3(audio_bytes_values,output_s3uri=""):
 
 
 class InferenceOpt(BaseModel):
-    refer_wav_path: str = "",
-    prompt_text: str = "",
-    prompt_language:str = "zh",
-    text:str = "my queue, my love ,my wife.",
+    refer_wav_path: str = ""
+    prompt_text: str = ""
+    prompt_language:str = "zh"
+    text:str = "my queue, my love ,my wife."
     text_language :str = "zh"
     output_s3uri:str = "s3://sagemaker-us-west-2-687912291502/gpt_sovits_output/wav/"
     cut_punc:str = "."
+    top_k:int = 15
+    top_p:float = 0.6
+    temperature:float = 0.6 
+    speed:int=1
+    sample_steps:int = 32
