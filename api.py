@@ -1142,6 +1142,9 @@ if args.stream_mode.lower() in ["normal", "n"]:
 else:
     stream_mode = "close"
 
+## sagemaker 强制开启stream
+stream_mode = "normal"
+
 # 音频编码格式
 if args.media_type.lower() in ["aac", "ogg"]:
     media_type = args.media_type.lower()
