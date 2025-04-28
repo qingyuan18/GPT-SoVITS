@@ -924,16 +924,24 @@ def get_tts_wav(
         if stream_mode == "normal":
             ## sagemaker 改造
             audio_bytes, chunked_audio_bytes = read_clean_buffer(audio_bytes)
-            ##opt1: yield chunked ogg binary bytes (TBD by sagemaker Service team)
-
-            print("chunk text: ",text)
-            print("sub_chunk_len: ",frame_bytes_10ms)
-            # loop chunked_audio_bytes every frame_bytes_10ms, ensure this will not exceed 8k
-            for i in range(0, len(chunked_audio_bytes), frame_bytes_10ms):
-                chunk = chunked_audio_bytes[i:i + frame_bytes_10ms]
-                yield chunk
+            ###opt1: yield chunked ogg binary bytes (TBD by sagemaker Service team)
+#
+            #print("chunk text: ",text)
+            #print("sub_chunk_len: ",frame_bytes_10ms)
+            ## loop chunked_audio_bytes every frame_bytes_10ms, ensure this will not exceed 8k
+            #for i in range(0, len(chunked_audio_bytes), frame_bytes_10ms):
+            #    chunk = chunked_audio_bytes[i:i + frame_bytes_10ms]
+            #    yield chunk
             #audio_bytes, audio_chunk = read_clean_buffer(audio_bytes)
             #yield audio_chunk
+            
+            ##opt2: pack indivitual audio ,write to s3 first , and return s3 file path
+            #chunked_audio_bytes = pack_wav(chunked_audio_bytes,hps.data.sampling_rate)
+            chunked_audio_bytes = pack_wav(chunked_audio_bytes,hps.data.sampling_rate)
+            print("here1===")
+            print(len(chunked_audio_bytes.getvalue()))
+            result = write_wav_to_s3(chunked_audio_bytes,output_s3uri)
+            yield json.dumps(result)
 
     if not stream_mode == "normal":
         if media_type == "wav":
