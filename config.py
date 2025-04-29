@@ -14,7 +14,8 @@ is_share = True if is_share_str.lower() == "true" else False
 cnhubert_path = "GPT_SoVITS/pretrained_models/chinese-hubert-base"
 bert_path = "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large"
 #pretrained_sovits_path = "GPT_SoVITS/pretrained_models/s2G488k.pth"
-pretrained_sovits_path = "GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth"
+#pretrained_sovits_path = "GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth"
+pretrained_sovits_path = "GPT_SoVITS/pretrained_models/./gsv-v2final-pretrained/s2G2333k.pth"
 #pretrained_gpt_path = "GPT_SoVITS/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"
 pretrained_gpt_path = "GPT_SoVITS/pretrained_models/s1v3.ckpt"
 
