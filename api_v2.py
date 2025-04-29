@@ -107,13 +107,14 @@ now_dir = os.getcwd()
 sys.path.append(now_dir)
 sys.path.append("%s/GPT_SoVITS" % (now_dir))
 
+import boto3
 import argparse
 import subprocess
 import wave
 import signal
 import numpy as np
 import soundfile as sf
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, Request, Query
 from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
 from io import BytesIO
@@ -121,6 +122,7 @@ from tools.i18n.i18n import I18nAuto
 from GPT_SoVITS.TTS_infer_pack.TTS import TTS, TTS_Config
 from GPT_SoVITS.TTS_infer_pack.text_segmentation_method import get_method_names as get_cut_method_names
 from pydantic import BaseModel
+from inference import *
 
 # print(sys.path)
 i18n = I18nAuto()
@@ -145,6 +147,26 @@ print(tts_config)
 tts_pipeline = TTS(tts_config)
 
 APP = FastAPI()
+
+## sagemaker 适配 start
+def download_from_s3(source_s3_url,local_file_path):
+    s3 = boto3.client('s3')
+    bucket_name, s3_file_path = get_bucket_and_key(source_s3_url)
+    # 下载文件
+    try:
+        s3.download_file(bucket_name, s3_file_path, local_file_path)
+        print(f'文件 {s3_file_path} 已下载到 {local_file_path}')
+    except Exception as e:
+        print(f'下载失败: {e}')
+
+def pre_download(ref_wav_path:str)-> None:
+    if "s3" in ref_wav_path:
+        file_name = os.path.basename(ref_wav_path)
+        download_file = "/tmp/"+file_name
+        download_from_s3(ref_wav_path,download_file)
+        return download_file
+    else:
+        return ref_wav_path
 
 
 class TTS_Request(BaseModel):
@@ -335,6 +357,9 @@ async def tts_handle(req: dict):
     return_fragment = req.get("return_fragment", False)
     media_type = req.get("media_type", "wav")
 
+    ### sagemaker 适配
+    req["ref_audio_path"] = pre_download(req["ref_audio_path"])
+
     check_res = check_params(req)
     if check_res is not None:
         return check_res
@@ -372,6 +397,24 @@ async def tts_handle(req: dict):
     except Exception as e:
         return JSONResponse(status_code=400, content={"message": "tts failed", "Exception": str(e)})
 
+
+@APP.get("/ping")
+async def ping():
+    """
+    ping /ping func
+    """
+    return {"message": "ok"}
+
+
+@APP.post("/invocations")
+async def invocations(request: Request):
+    json_post_raw = await request.json()
+    print(f"invocations {json_post_raw=}")
+    opt=parse_obj_as(TTS_Request,json_post_raw)
+    print(f"invocations {opt=}")
+
+    req = opt.dict()
+    return await tts_handle(req)
 
 @APP.get("/control")
 async def control(command: str = None):

@@ -40,7 +40,10 @@ def _add_sigterm_handler(mms_process):
             pass
 
     signal.signal(signal.SIGTERM, _terminate)
-cmd = ["python","/opt/program/api.py","-dr","Brigida.wav","-dt","hi hello","-dl","zh","-a","0.0.0.0","-p","8080"]
+##api.py v1 
+#cmd = ["python","/opt/program/api.py","-dr","Brigida.wav","-dt","hi hello","-dl","zh","-a","0.0.0.0","-p","8080"]
+##api_v2.py v2
+cmd = ["python","api_v2.py", "-a","0.0.0.0", "-p", "8080","-c", "GPT_SoVITS/configs/tts_infer.yaml"]
 process = subprocess.Popen(cmd)
 process.wait()
 

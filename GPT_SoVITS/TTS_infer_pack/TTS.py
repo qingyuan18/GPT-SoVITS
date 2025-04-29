@@ -151,11 +151,11 @@ class NO_PROMPT_ERROR(Exception):
 custom:
   bert_base_path: GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large
   cnhuhbert_base_path: GPT_SoVITS/pretrained_models/chinese-hubert-base
-  device: cpu
+  device: cuda
   is_half: false
-  t2s_weights_path: GPT_SoVITS/pretrained_models/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt
-  vits_weights_path: GPT_SoVITS/pretrained_models/gsv-v2final-pretrained/s2G2333k.pth
-  version: v2
+  t2s_weights_path: GPT_SoVITS/pretrained_models/s1v3.ckpt
+  version: v4
+  vits_weights_path: GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth
 v1:
   bert_base_path: GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large
   cnhuhbert_base_path: GPT_SoVITS/pretrained_models/chinese-hubert-base
@@ -183,7 +183,7 @@ v3:
 v4:
   bert_base_path: GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large
   cnhuhbert_base_path: GPT_SoVITS/pretrained_models/chinese-hubert-base
-  device: cpu
+  device: cuda
   is_half: false
   t2s_weights_path: GPT_SoVITS/pretrained_models/s1v3.ckpt
   version: v4
@@ -235,7 +235,7 @@ class TTS_Config:
             "bert_base_path": "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large",
         },
         "v3": {
-            "device": "cpu",
+            "device": "cuda",
             "is_half": False,
             "version": "v3",
             "t2s_weights_path": "GPT_SoVITS/pretrained_models/s1v3.ckpt",
@@ -244,7 +244,7 @@ class TTS_Config:
             "bert_base_path": "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large",
         },
         "v4": {
-            "device": "cpu",
+            "device": "cuda",
             "is_half": False,
             "version": "v4",
             "t2s_weights_path": "GPT_SoVITS/pretrained_models/s1v3.ckpt",
@@ -287,7 +287,7 @@ class TTS_Config:
             configs: dict = self._load_configs(self.configs_path)
 
         assert isinstance(configs, dict)
-        version = configs.get("version", "v2").lower()
+        version = configs.get("version", "v4").lower()
         assert version in ["v1", "v2", "v3", "v4"]
         self.default_configs[version] = configs.get(version, self.default_configs[version])
         self.configs: dict = configs.get("custom", deepcopy(self.default_configs[version]))
@@ -1040,6 +1040,7 @@ class TTS:
                 raise ValueError(f"{ref_audio_path} not exists")
             self.set_ref_audio(ref_audio_path)
 
+        print("here0=====")
         aux_ref_audio_paths = aux_ref_audio_paths if aux_ref_audio_paths is not None else []
         paths = set(aux_ref_audio_paths) & set(self.prompt_cache["aux_ref_audio_paths"])
         if not (len(list(paths)) == len(aux_ref_audio_paths) == len(self.prompt_cache["aux_ref_audio_paths"])):
@@ -1053,6 +1054,7 @@ class TTS:
                     continue
                 self.prompt_cache["refer_spec"].append(self._get_ref_spec(path))
 
+        print("here1=====")
         if not no_prompt_text:
             prompt_text = prompt_text.strip("\n")
             if prompt_text[-1] not in splits:
@@ -1124,6 +1126,7 @@ class TTS:
                 )
                 return batch[0]
 
+        print("here2=====")
         t2 = time.perf_counter()
         try:
             print("############ 推理 ############")
@@ -1265,6 +1268,7 @@ class TTS:
                     yield 16000, np.zeros(int(16000), dtype=np.int16)
                     return
 
+            print("here3=====")
             if not return_fragment:
                 print("%.3f\t%.3f\t%.3f\t%.3f" % (t1 - t0, t2 - t1, t_34, t_45))
                 if len(audio) == 0:
