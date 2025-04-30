@@ -353,7 +353,7 @@ async def tts_handle(req: dict):
         StreamingResponse: audio stream response.
     """
 
-    streaming_mode = req.get("streaming_mode", False)
+    streaming_mode = req.get("streaming_mode", True)
     return_fragment = req.get("return_fragment", False)
     media_type = req.get("media_type", "wav")
 
