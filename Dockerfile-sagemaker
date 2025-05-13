@@ -40,6 +40,8 @@ ARG IMAGE_TYPE=full
 RUN bash /opt/program/install_without_conda.sh  --source HF --download-uvr5
 ## 升级cuda torch
 RUN pip install -U torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+## pyarrow issue solve
+pip install pyarrow==16.1.0
 
 # Conditional logic based on the IMAGE_TYPE argument
 # Always copy the Docker directory, but only use it if IMAGE_TYPE is not "elite"
