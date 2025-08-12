@@ -1,0 +1,405 @@
+{
+  "7": {
+    "inputs": {
+      "model_name": "Wan2_1_VAE_bf16.safetensors",
+      "precision": "bf16"
+    },
+    "class_type": "WanVideoVAELoader",
+    "_meta": {
+      "title": "WanVideo VAE Loader"
+    }
+  },
+  "9": {
+    "inputs": {
+      "model_name": "umt5-xxl-enc-bf16.safetensors",
+      "precision": "bf16",
+      "load_device": "offload_device",
+      "quantization": "disabled"
+    },
+    "class_type": "LoadWanVideoT5TextEncoder",
+    "_meta": {
+      "title": "WanVideo T5 Text Encoder Loader"
+    }
+  },
+  "15": {
+    "inputs": {
+      "model": "aniWan_i2v.safetensors",
+      "base_precision": "bf16",
+      "quantization": "fp8_e4m3fn",
+      "load_device": "offload_device",
+      "attention_mode": "sageattn",
+      "block_swap_args": [
+        "16",
+        0
+      ],
+      "lora": [
+        "45",
+        0
+      ]
+    },
+    "class_type": "WanVideoModelLoader",
+    "_meta": {
+      "title": "WanVideo Model Loader"
+    }
+  },
+  "16": {
+    "inputs": {
+      "blocks_to_swap": 30,
+      "offload_img_emb": false,
+      "offload_txt_emb": false,
+      "use_non_blocking": true,
+      "vace_blocks_to_swap": 0
+    },
+    "class_type": "WanVideoBlockSwap",
+    "_meta": {
+      "title": "WanVideo Block Swap"
+    }
+  },
+  "19": {
+    "inputs": {
+      "enable_vae_tiling": true,
+      "tile_x": 272,
+      "tile_y": 272,
+      "tile_stride_x": 144,
+      "tile_stride_y": 128,
+      "normalization": "default",
+      "vae": [
+        "7",
+        0
+      ],
+      "samples": [
+        "28",
+        0
+      ]
+    },
+    "class_type": "WanVideoDecode",
+    "_meta": {
+      "title": "WanVideo Decode"
+    }
+  },
+  "21": {
+    "inputs": {
+      "aspect_ratio": "original",
+      "proportional_width": 1,
+      "proportional_height": 1,
+      "fit": "letterbox",
+      "method": "lanczos",
+      "round_to_multiple": "16",
+      "scale_to_side": "longest",
+      "scale_to_length": [
+        "47",
+        0
+      ],
+      "background_color": "#000000",
+      "image": [
+        "29",
+        0
+      ]
+    },
+    "class_type": "LayerUtility: ImageScaleByAspectRatio V2",
+    "_meta": {
+      "title": "图层工具：按宽高比缩放 V2"
+    }
+  },
+  "24": {
+    "inputs": {
+      "expression": "a*16+1",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "a": [
+        "46",
+        0
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "27": {
+    "inputs": {
+      "select": 2,
+      "sel_mode": false,
+      "input1": [
+        "33",
+        0
+      ],
+      "input2": [
+        "49",
+        0
+      ]
+    },
+    "class_type": "ImpactSwitch",
+    "_meta": {
+      "title": "Switch (Any)"
+    }
+  },
+  "28": {
+    "inputs": {
+      "steps": 10,
+      "cfg": 1.0000000000000002,
+      "shift": 5.000000000000001,
+      "seed": 19,
+      "force_offload": true,
+      "scheduler": "unipc",
+      "riflex_freq_index": 0,
+      "denoise_strength": 1,
+      "batched_cfg": false,
+      "rope_function": "comfy",
+      "start_step": 0,
+      "end_step": -1,
+      "add_noise_to_samples": false,
+      "model": [
+        "15",
+        0
+      ],
+      "image_embeds": [
+        "39",
+        0
+      ],
+      "text_embeds": [
+        "38",
+        0
+      ]
+    },
+    "class_type": "WanVideoSampler",
+    "_meta": {
+      "title": "WanVideo Sampler"
+    }
+  },
+  "29": {
+    "inputs": {
+      "image": "02.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "31": {
+    "inputs": {
+      "frame_rate": 16,
+      "loop_count": 0,
+      "filename_prefix": "AnimateDiff",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": true,
+      "images": [
+        "19",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Combine 🎥🅥🅗🅢"
+    }
+  },
+  "32": {
+    "inputs": {
+      "text": "女孩在水中拼命挣扎，小狗跑到女孩身边，咬住她的红色衣服往雪地上拖",
+      "anything": [
+        "27",
+        0
+      ]
+    },
+    "class_type": "easy showAnything",
+    "_meta": {
+      "title": "展示任何"
+    }
+  },
+  "33": {
+    "inputs": {
+      "text": "女孩在水中拼命挣扎，小狗跑到女孩身边，咬住她的红色衣服往雪地上拖",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      }
+    },
+    "class_type": "CR Text",
+    "_meta": {
+      "title": "🔤 CR Text"
+    }
+  },
+  "35": {
+    "inputs": {
+      "prompt": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走",
+      "force_offload": true,
+      "use_disk_cache": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "device": "gpu",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "t5": [
+        "9",
+        0
+      ],
+      "model_to_offload": [
+        "15",
+        0
+      ]
+    },
+    "class_type": "WanVideoTextEncodeSingle",
+    "_meta": {
+      "title": "WanVideo TextEncodeSingle"
+    }
+  },
+  "36": {
+    "inputs": {
+      "prompt": [
+        "27",
+        0
+      ],
+      "force_offload": true,
+      "use_disk_cache": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "device": "gpu",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "t5": [
+        "9",
+        0
+      ],
+      "model_to_offload": [
+        "15",
+        0
+      ]
+    },
+    "class_type": "WanVideoTextEncodeSingle",
+    "_meta": {
+      "title": "WanVideo TextEncodeSingle"
+    }
+  },
+  "38": {
+    "inputs": {
+      "nag_scale": 11,
+      "nag_tau": 2.5,
+      "nag_alpha": 0.25,
+      "original_text_embeds": [
+        "36",
+        0
+      ],
+      "nag_text_embeds": [
+        "35",
+        0
+      ]
+    },
+    "class_type": "WanVideoApplyNAG",
+    "_meta": {
+      "title": "WanVideo Apply NAG"
+    }
+  },
+  "39": {
+    "inputs": {
+      "width": [
+        "21",
+        3
+      ],
+      "height": [
+        "21",
+        4
+      ],
+      "num_frames": [
+        "24",
+        0
+      ],
+      "noise_aug_strength": 0.030000000000000006,
+      "start_latent_strength": 1,
+      "end_latent_strength": 1,
+      "force_offload": true,
+      "fun_or_fl2v_model": false,
+      "tiled_vae": false,
+      "vae": [
+        "7",
+        0
+      ],
+      "start_image": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "WanVideoImageToVideoEncode",
+    "_meta": {
+      "title": "WanVideo ImageToVideo Encode"
+    }
+  },
+  "45": {
+    "inputs": {
+      "lora": "Wan21_T2V_14B_lightx2v_cfg_step_distill_lora_rank32.safetensors",
+      "strength": 1,
+      "low_mem_load": false,
+      "merge_loras": true
+    },
+    "class_type": "WanVideoLoraSelect",
+    "_meta": {
+      "title": "WanVideo Lora Select"
+    }
+  },
+  "46": {
+    "inputs": {
+      "value": 5
+    },
+    "class_type": "easy int",
+    "_meta": {
+      "title": "整数"
+    }
+  },
+  "47": {
+    "inputs": {
+      "value": 720
+    },
+    "class_type": "easy int",
+    "_meta": {
+      "title": "整数"
+    }
+  },
+  "49": {
+    "inputs": {
+      "prompt": "及时一个AI视频提示词专家，我需要你帮我根据参考图和如下的概要描述生成让图像动起来的提示词，\n\n概要描述：\n女孩在水中拼命挣扎，小狗跑到女孩身边，咬住她的红色衣服往雪地上拖\n\n\n要求：\n\n提示词=主体(主体描述)+场景(场景描述)+运动(运动描述)+镜头语言+氛围词+风格化主体描述:主体描述是对主体外观特征细节的描述，可通过形容词或短句列举，例如“一位身着少数民族服饰的黑发苗族少女”、\"一位来自异世界的飞天仙子，身着破旧却华丽的服饰，背后展开一对由废墟碎片构成的奇异翅膀”。场景描述:场景描述是对主体所处环境特征细节的描述，可通过形容词或短句列举运动描述:运动描述是对运动特征细节的描述，包含运动的幅度、速率和运动作用的效果，例如“猛烈地摇摆”、\"缓慢地移动\"、\"打碎了玻璃\"。镜头语言:镜头语言包含景别、视角、镜头、运镜等，常见镜头语言详见下方提示词词典。\n氛围词:氛围词是对预期画面氛围的描述，例如“梦幻\"、“孤独”、“宏伟\"，常见氛围词详见下方提示词词典。\n风格化:风格化是对画面风格语言的描述，例如“赛博朋克”、\"勾线插画”、\"废土风格\"，常见风格化详见下方提示词词典。\n\n参考案例如下：\n```\n一位身穿轻盈白色连衣裙的长发美女，肤色白皙，眼神温柔，微笑着，神情宁静。在金色的沙滩上，阳光明媚，海浪轻拍岸边，远处是碧蓝的大海与无边的天空交接，海风轻拂。她轻轻地在沙滩上步行，步伐优雅而缓慢，时而低头踩踏着海水，留下清晰的脚印，时而抬起头看向远方，微风吹动她的长发。镜头采用中景，稍微偏低的视角，以侧面跟随镜头运作，画面随她的步伐缓缓推进。镜头会偶尔拉近，捕捉她面部的柔和表情和细微的动作变化。宁静、柔和、浪漫、梦幻。清新自然的摄影风格，带有暖色调，画面略带柔焦效果，给人一种温暖的海边度假感。\n```\n\n请为我按照要求让图像动起来，提示词要求简洁通顺连贯，文字要求50字以内\n",
+      "model_id": "anthropic.claude-3-haiku-20240307-v1:0",
+      "max_tokens": 2048,
+      "temperature": 0.059000000000000004,
+      "top_p": 1,
+      "top_k": 37,
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "image": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "Bedrock - Claude Multimodal",
+    "_meta": {
+      "title": "Bedrock - Claude Multimodal"
+    }
+  }
+}
