@@ -180,77 +180,114 @@ def main():
         print("4. 合并视频和音频 (跳过)")
         print("5. 拼接最终视频 (跳过)")
         
-        # 只执行图像分析
-        print(f"\n📊 分析 {len(images)} 个图像...")
-        for i, image_path in enumerate(images[:processor.max_images], 1):
-            print(f"  {i}. {os.path.basename(image_path)}")
-            result = processor.analyze_comic_image_content(image_path, i-1)
+        # 只执行图像分析（使用多图像API）
+        print(f"\n📊 分析 {len(images)} 个图像（多图像模式）...")
+
+        # 使用新的批量分析方法
+        analysis_results = processor.batch_analyze_comic_images(args.input, processor.max_images)
+
+        print(f"\n📊 测试运行结果:")
+        for i, result in enumerate(analysis_results, 1):
             if result.get('success'):
-                analysis = result['analysis_result']
-                print(f"     ✅ 分析成功 - {analysis.get('story_content', '')[:50]}...")
+                selected_path = result.get('file_path', '')
+                analysis = result.get('analysis_result', {})
+
+                print(f"  批次 {i}:")
+                print(f"    🔑 选中图像: {os.path.basename(selected_path)}")
+
+                if 'overall_analysis' in analysis:
+                    main_theme = analysis['overall_analysis'].get('main_theme', '')
+                    print(f"    🎭 主要主题: {main_theme[:80]}...")
+
+                if 'video_prompt' in analysis:
+                    video_prompt = analysis['video_prompt']
+                    print(f"    🎬 视频提示: {video_prompt[:80]}...")
+
+                if 'combined_audio_script' in analysis:
+                    audio_script = analysis['combined_audio_script']
+                    print(f"    🎙️ 配音文本: {audio_script[:80]}...")
             else:
-                print(f"     ❌ 分析失败 - {result.get('error', '')}")
-        
+                print(f"  批次 {i}: ❌ 分析失败 - {result.get('error', '')}")
+
         print("\n✅ 测试运行完成")
         return 0
     
     # 执行完整流程
     print(f"\n🚀 开始处理 {args.input}")
-    
+
     try:
-        # 这里需要实现完整的处理流程
-        # 由于notebook中的process_comic_to_video_voice函数还没有在utils中实现
-        # 我们先执行图像分析部分
-        
-        print("\n📊 步骤1: 分析漫画图像内容")
-        analysis_results = []
-        
-        for i, image_path in enumerate(images[:processor.max_images]):
-            print(f"\n📁 处理图像 {i+1}/{min(len(images), processor.max_images)}: {os.path.basename(image_path)}")
-            result = processor.analyze_comic_image_content(image_path, i)
-            analysis_results.append(result)
-            
-            if result.get('success'):
-                analysis = result['analysis_result']
-                print(f"  ✅ 分析完成 - {analysis.get('story_content', '')[:100]}...")
+        # 检查是否配置了完整的服务
+        has_comfyui = bool(processor.comfyui_server_url and processor.comfyui_workflow_path)
+        has_gpt_sovits = bool(processor.gpt_sovits_endpoint and processor.reference_audio_path)
+
+        if has_comfyui and has_gpt_sovits:
+            # 执行完整流程
+            print("\n🎬 执行完整的漫画转视频配音流程")
+            final_video = processor.process_comic_to_video_voice(args.input)
+
+            if final_video:
+                print(f"\n🎉 完整流程成功完成！")
+                print(f"📁 最终视频: {final_video}")
+
+                if args.output:
+                    # 如果指定了输出文件名，重命名最终视频
+                    import shutil
+                    try:
+                        shutil.move(final_video, args.output)
+                        print(f"📁 视频已重命名为: {args.output}")
+                    except Exception as e:
+                        print(f"⚠️ 重命名失败: {e}")
+
+                return 0
             else:
-                print(f"  ❌ 分析失败 - {result.get('error', '')}")
-        
-        successful_results = [r for r in analysis_results if r.get('success')]
-        print(f"\n✅ 成功分析 {len(successful_results)} 张图像")
-        
-        if not successful_results:
-            print("❌ 没有成功分析的图像，退出")
-            return 1
-        
-        # 保存分析结果
-        import json
-        from datetime import datetime
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        results_file = f"analysis_results_{timestamp}.json"
-        
-        with open(results_file, 'w', encoding='utf-8') as f:
-            json.dump(analysis_results, f, ensure_ascii=False, indent=2)
-        
-        print(f"📄 分析结果已保存: {results_file}")
-        
-        # 显示统计信息
-        print(f"\n📊 处理统计:")
-        print(f"  • 输入图像: {len(images)}")
-        print(f"  • 处理图像: {min(len(images), processor.max_images)}")
-        print(f"  • 成功分析: {len(successful_results)}")
-        print(f"  • 失败分析: {len(analysis_results) - len(successful_results)}")
-        
-        # 清理临时文件
-        if args.cleanup:
-            print("\n🧹 清理临时文件...")
-            processor.cleanup_temp_files()
-        
-        print("\n🎉 处理完成!")
-        print("⚠️ 注意: 完整的视频生成功能需要配置ComfyUI和GPT-SoVITS")
-        
-        return 0
+                print("❌ 完整流程执行失败")
+                return 1
+        else:
+            # 只执行图像分析部分
+            print("\n📊 执行图像分析流程（缺少完整配置）")
+            if not has_comfyui:
+                print("⚠️ 缺少ComfyUI配置，跳过视频生成")
+            if not has_gpt_sovits:
+                print("⚠️ 缺少GPT-SoVITS配置，跳过语音生成")
+
+            # 使用新的批量分析方法
+            analysis_results = processor.batch_analyze_comic_images(args.input, processor.max_images)
+
+            successful_results = [r for r in analysis_results if r.get('success')]
+            print(f"\n✅ 成功分析 {len(successful_results)} 个批次")
+
+            if not successful_results:
+                print("❌ 没有成功分析的批次，退出")
+                return 1
+
+            # 保存分析结果
+            import json
+            from datetime import datetime
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            results_file = f"analysis_results_{timestamp}.json"
+
+            with open(results_file, 'w', encoding='utf-8') as f:
+                json.dump(analysis_results, f, ensure_ascii=False, indent=2)
+
+            print(f"📄 分析结果已保存: {results_file}")
+
+            # 显示统计信息
+            print(f"\n📊 处理统计:")
+            print(f"  • 输入图像: {len(images)}")
+            print(f"  • 处理图像: {min(len(images), processor.max_images)}")
+            print(f"  • 成功分析: {len(successful_results)}")
+            print(f"  • 失败分析: {len(analysis_results) - len(successful_results)}")
+
+            print("\n✅ 图像分析完成!")
+            print("⚠️ 注意: 完整的视频生成功能需要配置ComfyUI和GPT-SoVITS")
+
+            # 清理临时文件
+            if args.cleanup:
+                print("\n🧹 清理临时文件...")
+                processor.cleanup_temp_files()
+
+            return 0
         
     except KeyboardInterrupt:
         print("\n\n⚠️ 用户中断处理")

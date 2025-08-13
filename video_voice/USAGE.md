@@ -1,4 +1,10 @@
-# 使用指南
+# 漫画转视频配音系统使用指南
+
+本系统实现了一个完整的流程：
+1. 使用Bedrock Nova多模态模型提取漫画图像关键内容
+2. 调用ComfyUI接口进行图生视频
+3. 通过GPT-SoVITS接口生成语音
+4. 合并视频和音频
 
 ## 🚀 快速开始
 
@@ -40,14 +46,27 @@ cp config_example.py config.py
 编辑 `config.py` 文件，填入以下必要参数：
 
 ```python
+# Bedrock配置
+BEDROCK_REGION = "us-west-2"
+BEDROCK_MODEL_ID = "us.amazon.nova-pro-v1:0"
+
 # ComfyUI配置
-COMFYUI_SERVER_URL = "your-comfyui-server.com:8080"
+COMFYUI_SERVER_URL = "http://your-comfyui-server.com:8188"
 COMFYUI_WORKFLOW_PATH = "sample_workflow.json"  # 或你的自定义工作流
 
-# GPT-SoVITS配置  
+# GPT-SoVITS配置
 GPT_SOVITS_ENDPOINT = "your-gpt-sovits-endpoint-name"
 REFERENCE_AUDIO_PATH = "s3://your-bucket/reference-audio.mp3"
+REFERENCE_TEXT = "参考音频对应的文本内容"
+
+# 批处理配置
+BATCH_SIZE = 10  # 每批处理的图像数量
+MAX_IMAGES = 80  # 最大处理图像数量
 ```
+
+**注意**:
+- 如果只想测试图像分析功能，可以只配置Bedrock相关参数
+- 完整的视频生成需要配置所有参数
 
 ### 3. 准备漫画图像
 
@@ -67,7 +86,13 @@ mkdir -p input_images
 python3 run_comic_video.py --input input_images
 ```
 
-#### 测试运行（仅分析图像）
+#### 仅图像分析（无需ComfyUI和GPT-SoVITS配置）
+```bash
+python3 run_comic_video.py --input input_images
+# 系统会自动检测配置，如果缺少完整配置则只执行图像分析
+```
+
+#### 测试运行（仅分析图像，显示详细结果）
 ```bash
 python3 run_comic_video.py --input input_images --dry-run
 ```
@@ -77,9 +102,19 @@ python3 run_comic_video.py --input input_images --dry-run
 python3 run_comic_video.py --input input_images --max-images 5
 ```
 
+#### 自定义输出文件名
+```bash
+python3 run_comic_video.py --input input_images --output my_comic_video.mp4
+```
+
 #### 详细输出
 ```bash
 python3 run_comic_video.py --input input_images --verbose
+```
+
+#### 处理完成后清理临时文件
+```bash
+python3 run_comic_video.py --input input_images --cleanup
 ```
 
 ## 📋 使用Jupyter Notebook
@@ -143,28 +178,48 @@ video_voice/
 
 ### 处理流程
 
-1. **图像分析**: 使用Bedrock Nova分析漫画内容
-2. **视频生成**: 通过ComfyUI生成动态视频
-3. **语音合成**: 使用GPT-SoVITS生成配音
-4. **视频合成**: 合并视频和音频
-5. **最终输出**: 拼接完整视频
+#### 完整流程（5个步骤）
+1. **图像分析**: 使用Bedrock Nova批量分析漫画内容，每批次选择最佳图像
+2. **视频生成**: 通过ComfyUI从选中图像生成动态视频
+3. **语音合成**: 使用GPT-SoVITS根据分析结果生成配音
+4. **视频合成**: 合并视频和音频文件
+5. **最终输出**: 拼接所有视频片段为完整视频
+
+#### 仅分析模式（1个步骤）
+1. **图像分析**: 使用Bedrock Nova批量分析漫画内容，输出JSON格式的分析结果
+
+#### 新的批量处理特性
+- **多图像分析**: 每批次同时分析多张图像，提供整体故事理解
+- **智能选择**: 自动选择最适合视频生成的图像
+- **简化输出**: 使用扁平化的JSON结构，便于后续处理
 
 ### 分析结果格式
 
+#### 新的简化格式（与notebook一致）
 ```json
 {
   "success": true,
-  "file_path": "input_images/comic_01.jpg",
+  "file_path": "input_images/selected_comic.jpg",
   "analysis_result": {
-    "scene_description": "场景描述",
-    "characters": "人物信息", 
-    "dialogue_text": "对话文字",
-    "story_content": "故事内容",
-    "video_prompt": "视频生成提示词",
-    "audio_script": "配音文本"
-  }
+    "overall_analysis": {
+      "story_flow": "整体故事流程和连贯性分析",
+      "main_theme": "主要主题和情节发展",
+      "character_development": "人物发展和关系变化"
+    },
+    "selected_index": 2,
+    "video_prompt": "基于整个批次图像的完整视频生成提示词",
+    "combined_audio_script": "结合整个批次所有图像信息生成的完整配音文本"
+  },
+  "is_selected_from_batch": true,
+  "batch_image_paths": ["image1.jpg", "image2.jpg", "image3.jpg"],
+  "batch_analysis": "完整的批次分析结果"
 }
 ```
+
+#### 输出文件
+- `analysis_results_YYYYMMDD_HHMMSS.json`: 完整的分析结果
+- `temp/selected_images_info.json`: 每批次选中的图像信息
+- `comic_video_YYYYMMDD_HHMMSS.mp4`: 最终生成的视频（完整流程）
 
 ## 🛠️ 故障排除
 
@@ -205,14 +260,32 @@ python3 run_comic_video.py --input input_images --verbose
 ```python
 from comic_video_utils import ComicVideoProcessor
 
-processor = ComicVideoProcessor()
+# 创建处理器（可以传入配置参数）
+processor = ComicVideoProcessor(
+    bedrock_region="us-west-2",
+    bedrock_model_id="us.amazon.nova-pro-v1:0",
+    batch_size=3,
+    max_images=10
+)
 
-# 测试图像分析
+# 测试批量图像分析
+results = processor.batch_analyze_comic_images("input_images", max_files=5)
+for result in results:
+    if result['success']:
+        print(f"选中图像: {result['file_path']}")
+        print(f"主题: {result['analysis_result']['overall_analysis']['main_theme']}")
+
+# 测试单张图像分析（兼容模式）
 result = processor.analyze_comic_image_content("test_image.jpg")
 print(result)
 
 # 检查依赖
 processor.check_dependencies()
+
+# 测试完整流程（需要完整配置）
+if processor.comfyui_server_url and processor.gpt_sovits_endpoint:
+    final_video = processor.process_comic_to_video_voice("input_images")
+    print(f"最终视频: {final_video}")
 ```
 
 ## 📈 性能优化

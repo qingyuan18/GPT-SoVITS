@@ -6,15 +6,15 @@
 
 # Bedrock配置
 BEDROCK_REGION = "us-west-2"
-BEDROCK_MODEL_ID = "us.amazon.nova-lite-v1:0"
+BEDROCK_MODEL_ID = "us.amazon.nova-pro-v1:0"  # 使用nova-pro以获得更好的多图像分析效果
 
 # ComfyUI配置
 # 请填入你的ComfyUI服务器地址和端口
-COMFYUI_SERVER_URL = ""  # 例如: "your-server.com:8080"
+COMFYUI_SERVER_URL = ""  # 例如: "http://your-server.com:8188"
 
 # ComfyUI工作流JSON文件路径
 # 请根据你的ComfyUI配置创建相应的工作流文件
-COMFYUI_WORKFLOW_PATH = ""  # 例如: "workflows/img2video_workflow.json"
+COMFYUI_WORKFLOW_PATH = "./sample_workflow.json"  # 例如: "workflows/img2video_workflow.json"
 
 # GPT-SoVITS配置
 # 请填入你的GPT-SoVITS SageMaker端点名称
@@ -24,9 +24,12 @@ GPT_SOVITS_ENDPOINT = ""  # 例如: "gpt-sovits-inference-2025-01-01-12-00-00-00
 # 可以是S3路径或本地路径
 REFERENCE_AUDIO_PATH = ""  # 例如: "s3://your-bucket/reference-audio.mp3"
 
+# 参考音频对应的文本内容
+REFERENCE_TEXT = "它包括以下几个主要方面:SAP系统管理包括SAP系统实例的安装、启动、监控、备份、升级等日常管理任务。Basis团队负责保证系统的正常运行。"
+
 # 批处理配置
-BATCH_SIZE = 3  # 每批处理的图像数量
-MAX_IMAGES = 10  # 最大处理图像数量
+BATCH_SIZE = 10  # 每批处理的图像数量
+MAX_IMAGES = 80  # 最大处理图像数量
 
 # 输出配置
 OUTPUT_VIDEO_FORMAT = "mp4"  # 输出视频格式
@@ -131,31 +134,52 @@ DEBUG = {
 }
 
 # 验证配置函数
-def validate_config():
+def validate_config(require_full_config=True):
     """
     验证配置是否完整和正确
+
+    Args:
+        require_full_config: 是否要求完整配置（包括ComfyUI和GPT-SoVITS）
     """
     errors = []
-    
-    if not COMFYUI_SERVER_URL:
-        errors.append("COMFYUI_SERVER_URL 未设置")
-    
-    if not COMFYUI_WORKFLOW_PATH:
-        errors.append("COMFYUI_WORKFLOW_PATH 未设置")
-    
-    if not GPT_SOVITS_ENDPOINT:
-        errors.append("GPT_SOVITS_ENDPOINT 未设置")
-    
-    if not REFERENCE_AUDIO_PATH:
-        errors.append("REFERENCE_AUDIO_PATH 未设置")
-    
+    warnings = []
+
+    # 基础配置检查
+    if not BEDROCK_REGION:
+        errors.append("BEDROCK_REGION 未设置")
+
+    if not BEDROCK_MODEL_ID:
+        errors.append("BEDROCK_MODEL_ID 未设置")
+
+    # 完整配置检查
+    if require_full_config:
+        if not COMFYUI_SERVER_URL:
+            warnings.append("COMFYUI_SERVER_URL 未设置 - 将跳过视频生成")
+
+        if not COMFYUI_WORKFLOW_PATH:
+            warnings.append("COMFYUI_WORKFLOW_PATH 未设置 - 将跳过视频生成")
+
+        if not GPT_SOVITS_ENDPOINT:
+            warnings.append("GPT_SOVITS_ENDPOINT 未设置 - 将跳过语音生成")
+
+        if not REFERENCE_AUDIO_PATH:
+            warnings.append("REFERENCE_AUDIO_PATH 未设置 - 将跳过语音生成")
+
+    # 显示结果
     if errors:
         print("❌ 配置验证失败:")
         for error in errors:
             print(f"  • {error}")
         return False
-    
-    print("✅ 配置验证通过")
+
+    if warnings:
+        print("⚠️ 配置警告:")
+        for warning in warnings:
+            print(f"  • {warning}")
+        print("✅ 基础配置验证通过（仅支持图像分析）")
+    else:
+        print("✅ 完整配置验证通过")
+
     return True
 
 # 获取配置函数
