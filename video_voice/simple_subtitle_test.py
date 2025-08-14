@@ -30,7 +30,7 @@ def add_simple_subtitle(video_path, output_path, subtitle_text, font='./yahei.tt
         # 创建字幕 (MoviePy 1.0.3 语法)
         txt_clip = TextClip(
             subtitle_text,  # 第一个参数直接是文本
-            fontsize=10,    # 修改字体大小为10
+            fontsize=50,    # 注意是 fontsize 不是 font_size
             color='white',
             font=font
         )
@@ -95,7 +95,7 @@ def add_timed_captions(video_path, output_path, captions, font='./yahei.ttf'):
             
             txt_clip = TextClip(
                 text,           # 第一个参数直接是文本
-                fontsize=10,    # 修改字体大小为10
+                fontsize=50,    # 注意是 fontsize 不是 font_size
                 color='white',
                 font=font
             )
@@ -130,17 +130,7 @@ def main():
     print("=" * 50)
     
     # 查找测试视频
-    video_path = None
-    test_paths = ['./output_videos', './final_videos', '.']
-    
-    for path in test_paths:
-        if os.path.exists(path):
-            for file in os.listdir(path):
-                if file.endswith(('.mp4', '.avi', '.mov')):
-                    video_path = os.path.join(path, file)
-                    break
-        if video_path:
-            break
+    video_path = "./temp/temp_merged_6cea6984.mp4"
     
     if not video_path:
         print("❌ 未找到测试视频文件")
