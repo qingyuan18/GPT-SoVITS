@@ -821,6 +821,127 @@ class ComicVideoProcessor:
             print(f"❌ 合并过程出错: {str(e)}")
             return False
 
+    def add_subtitles_to_video(self, video_path: str, subtitle_text: str, output_path: str,
+                              font_size: int = 10, font_color: str = 'white',
+                              position: str = 'bottom', font_file: str = './yahei.ttf') -> bool:
+        """
+        为视频添加字幕
+
+        Args:
+            video_path: 输入视频路径
+            subtitle_text: 字幕文本
+            output_path: 输出视频路径
+            font_size: 字体大小 (默认10)
+            font_color: 字体颜色
+            position: 字幕位置 ('bottom', 'top', 'center')
+            font_file: 字体文件路径
+
+        Returns:
+            是否成功添加字幕
+        """
+        try:
+            from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+            import shutil
+
+            # 设置FFmpeg环境变量
+            if 'IMAGEIO_FFMPEG_EXE' not in os.environ:
+                ffmpeg_path = shutil.which('ffmpeg')
+                if ffmpeg_path:
+                    os.environ['IMAGEIO_FFMPEG_EXE'] = ffmpeg_path
+
+            # 检查字体文件
+            if not os.path.exists(font_file):
+                print(f"⚠️ 字体文件不存在: {font_file}，使用默认字体")
+                font_file = None
+
+            # 加载视频
+            video = VideoFileClip(video_path)
+
+            # 计算字幕位置
+            if position == 'bottom':
+                subtitle_position = ('center', video.h - 30)
+            elif position == 'top':
+                subtitle_position = ('center', 20)
+            else:  # center
+                subtitle_position = ('center', 'center')
+
+            # 创建字幕文本片段
+            if font_file:
+                subtitle_clip = TextClip(
+                    subtitle_text,
+                    fontsize=font_size,
+                    color=font_color,
+                    font=font_file
+                ).set_position(subtitle_position).set_duration(video.duration)
+            else:
+                subtitle_clip = TextClip(
+                    subtitle_text,
+                    fontsize=font_size,
+                    color=font_color
+                ).set_position(subtitle_position).set_duration(video.duration)
+
+            # 合成视频和字幕
+            final_video = CompositeVideoClip([video, subtitle_clip])
+
+            print(f"📝 添加字幕到视频")
+            print(f"📹 输入视频: {os.path.basename(video_path)}")
+            print(f"💬 字幕内容: {subtitle_text[:50]}{'...' if len(subtitle_text) > 50 else ''}")
+
+            # 写入输出文件
+            final_video.write_videofile(
+                output_path,
+                codec='libx264',
+                audio_codec='aac',
+                temp_audiofile='temp_audio.m4a',
+                remove_temp=True,
+                verbose=False,
+                logger=None
+            )
+
+            # 清理资源
+            video.close()
+            subtitle_clip.close()
+            final_video.close()
+
+            print(f"✅ 字幕视频已保存: {output_path}")
+            return True
+
+        except Exception as e:
+            print(f"❌ 添加字幕失败: {str(e)}")
+            return False
+
+    def merge_video_audio_with_subtitles(self, video_path: str, audio_path: str,
+                                       subtitle_text: str, output_path: str) -> bool:
+        """
+        合并视频、音频并添加字幕
+        """
+        try:
+            import uuid
+
+            # 临时文件路径
+            temp_video_with_audio = os.path.join('temp', f'temp_merged_{uuid.uuid4().hex[:8]}.mp4')
+
+            # 确保temp目录存在
+            os.makedirs('temp', exist_ok=True)
+
+            # 第一步：合并视频和音频
+            if not self.merge_video_audio(video_path, audio_path, temp_video_with_audio):
+                return False
+
+            # 第二步：添加字幕
+            success = self.add_subtitles_to_video(temp_video_with_audio, subtitle_text, output_path)
+
+            # 保留临时文件用于troubleshooting
+            if os.path.exists(temp_video_with_audio):
+                print(f"💾 保留临时文件用于调试: {temp_video_with_audio}")
+                # os.remove(temp_video_with_audio)  # 注释掉删除操作
+
+            return success
+
+        except Exception as e:
+            print(f"❌ 合并视频音频并添加字幕失败: {str(e)}")
+            return False
+
     def concatenate_videos(self, video_paths: List[str], output_path: str) -> bool:
         """
         拼接多个视频文件
@@ -919,126 +1040,7 @@ class ComicVideoProcessor:
             print(f"❌ 获取视频时长出错: {str(e)}")
             return 0.0
 
-    def process_comic_to_video_voice(self, input_directory: str) -> str:
-        """
-        完整的漫画转视频配音流程
 
-        Args:
-            input_directory: 输入漫画图像目录
-
-        Returns:
-            最终输出视频路径
-        """
-        print("🚀 开始漫画转视频配音流程")
-        print("="*60)
-
-        # 步骤1: 批量分析漫画图像
-        print("\n📊 步骤1: 分析漫画图像内容")
-        analysis_results = self.batch_analyze_comic_images(input_directory, self.max_images)
-
-        if not analysis_results:
-            print("❌ 没有成功分析的图像")
-            return None
-
-        # 过滤成功的分析结果
-        successful_results = [r for r in analysis_results if r.get('success')]
-        if not successful_results:
-            print("❌ 没有成功分析的图像")
-            return None
-
-        print(f"✅ 成功分析 {len(successful_results)} 张图像")
-
-        # 步骤2: 生成视频
-        print("\n🎬 步骤2: 生成视频")
-        video_files = []
-        audio_scripts = []
-
-        for i, result in enumerate(successful_results):
-            analysis = result['analysis_result']
-            image_path = result['file_path']
-
-            # 生成视频文件名
-            video_filename = f"video_{i:03d}.mp4"
-            video_path = os.path.join('output_videos', video_filename)
-
-            # 获取视频提示词
-            video_prompt = analysis.get('video_prompt', 'animate the comic scene')
-
-            print(f"\n🎥 生成视频 {i+1}/{len(successful_results)}")
-            if self.generate_video_from_image(image_path, video_prompt, video_path):
-                video_files.append(video_path)
-                # 收集音频脚本（使用新的combined_audio_script字段）
-                audio_script = analysis.get('combined_audio_script', '')
-                if audio_script and audio_script.strip():
-                    audio_scripts.append(audio_script)
-                else:
-                    audio_scripts.append(f"第{i+1}个场景")
-            else:
-                print(f"⚠️ 视频 {i+1} 生成失败，跳过")
-
-        if not video_files:
-            print("❌ 没有成功生成的视频")
-            return None
-
-        print(f"✅ 成功生成 {len(video_files)} 个视频")
-
-        # 步骤3: 生成语音
-        print("\n🔊 步骤3: 生成语音")
-        audio_files = []
-
-        for i, script in enumerate(audio_scripts):
-            audio_filename = f"audio_{i:03d}.wav"
-            audio_path = os.path.join('output_audio', audio_filename)
-
-            print(f"\n🎙️ 生成语音 {i+1}/{len(audio_scripts)}")
-            if self.generate_audio_from_text(output_path=audio_path, prompt_text=script):
-                audio_files.append(audio_path)
-            else:
-                print(f"⚠️ 语音 {i+1} 生成失败，跳过")
-                audio_files.append(None)
-
-        print(f"✅ 成功生成 {len([a for a in audio_files if a])} 个语音文件")
-
-        # 步骤4: 合并视频和音频
-        print("\n🎞️ 步骤4: 合并视频和音频")
-        final_video_files = []
-
-        for i, (video_path, audio_path) in enumerate(zip(video_files, audio_files)):
-            final_filename = f"final_{i:03d}.mp4"
-            final_path = os.path.join('final_videos', final_filename)
-
-            if audio_path and os.path.exists(audio_path):
-                print(f"\n🎬 合并视频音频 {i+1}/{len(video_files)}")
-                if self.merge_video_audio(video_path, audio_path, final_path):
-                    final_video_files.append(final_path)
-                else:
-                    print(f"⚠️ 合并失败，使用原视频")
-                    final_video_files.append(video_path)
-            else:
-                print(f"⚠️ 没有对应音频，使用原视频")
-                final_video_files.append(video_path)
-
-        # 步骤5: 拼接所有视频
-        print("\n🎬 步骤5: 拼接最终视频")
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        final_output = f"comic_video_{timestamp}.mp4"
-
-        if self.concatenate_videos(final_video_files, final_output):
-            print(f"\n🎉 流程完成！")
-            print(f"📁 最终视频: {final_output}")
-
-            # 显示统计信息
-            total_duration = sum(self.get_video_duration(vf) for vf in final_video_files if os.path.exists(vf))
-            print(f"⏱️ 总时长: {total_duration:.2f} 秒")
-            print(f"📊 处理统计:")
-            print(f"  • 输入图像: {len(analysis_results)}")
-            print(f"  • 生成视频: {len(video_files)}")
-            print(f"  • 生成语音: {len([a for a in audio_files if a])}")
-
-            return final_output
-        else:
-            print("❌ 最终视频拼接失败")
-            return None
 
     def process_comic_to_video_voice(self, input_directory: str) -> str:
         """
@@ -1120,24 +1122,36 @@ class ComicVideoProcessor:
 
         print(f"✅ 成功生成 {len([a for a in audio_files if a])} 个语音文件")
 
-        # 步骤4: 合并视频和音频
-        print("\n🎞️ 步骤4: 合并视频和音频")
+        # 步骤4: 合并视频、音频并添加字幕
+        print("\n🎞️ 步骤4: 合并视频、音频并添加字幕")
         final_video_files = []
 
         for i, (video_path, audio_path) in enumerate(zip(video_files, audio_files)):
             final_filename = f"final_{i:03d}.mp4"
             final_path = os.path.join('final_videos', final_filename)
 
+            # 获取对应的字幕文本
+            subtitle_text = audio_scripts[i] if i < len(audio_scripts) else ""
+
             if audio_path and os.path.exists(audio_path):
-                print(f"\n🎬 合并视频音频 {i+1}/{len(video_files)}")
-                if self.merge_video_audio(video_path, audio_path, final_path):
+                print(f"\n🎬 合并视频音频并添加字幕 {i+1}/{len(video_files)}")
+                if self.merge_video_audio_with_subtitles(video_path, audio_path, subtitle_text, final_path):
                     final_video_files.append(final_path)
                 else:
-                    print(f"⚠️ 合并失败，使用原视频")
-                    final_video_files.append(video_path)
+                    print(f"⚠️ 合并失败，尝试仅添加字幕")
+                    # 如果合并失败，尝试只添加字幕
+                    if subtitle_text and self.add_subtitles_to_video(video_path, subtitle_text, final_path):
+                        final_video_files.append(final_path)
+                    else:
+                        print(f"⚠️ 字幕添加也失败，使用原视频")
+                        final_video_files.append(video_path)
             else:
-                print(f"⚠️ 没有对应音频，使用原视频")
-                final_video_files.append(video_path)
+                print(f"⚠️ 没有对应音频，仅添加字幕")
+                if subtitle_text and self.add_subtitles_to_video(video_path, subtitle_text, final_path):
+                    final_video_files.append(final_path)
+                else:
+                    print(f"⚠️ 没有字幕文本，使用原视频")
+                    final_video_files.append(video_path)
 
         # 步骤5: 拼接所有视频
         print("\n🎬 步骤5: 拼接最终视频")
@@ -1163,19 +1177,58 @@ class ComicVideoProcessor:
 
     def cleanup_temp_files(self):
         """
-        清理临时文件和目录
+        清理临时文件（保留temp_merged文件用于调试）
         """
-        import shutil
+        import glob
 
-        temp_dirs = ['temp', 'output_videos', 'output_audio']
-        for temp_dir in temp_dirs:
-            if os.path.exists(temp_dir):
+        print("🧹 清理临时文件...")
+
+        # 清理其他临时文件，但保留temp_merged文件
+        temp_patterns = [
+            'temp_audio.m4a',
+            'temp/video_list.txt'
+        ]
+
+        cleaned_count = 0
+        for pattern in temp_patterns:
+            if os.path.exists(pattern):
                 try:
-                    shutil.rmtree(temp_dir)
-                    os.makedirs(temp_dir, exist_ok=True)
-                    print(f"🧹 已清理: {temp_dir}")
+                    os.remove(pattern)
+                    print(f"🗑️ 已删除: {pattern}")
+                    cleaned_count += 1
                 except Exception as e:
-                    print(f"❌ 清理失败 {temp_dir}: {e}")
+                    print(f"⚠️ 删除失败 {pattern}: {str(e)}")
+
+        print(f"✅ 清理完成，共删除 {cleaned_count} 个临时文件")
+        print("💾 保留 temp/temp_merged_*.mp4 文件用于调试")
+
+    def cleanup_all_temp_files(self):
+        """
+        清理所有临时文件（包括temp_merged文件）
+        """
+        import glob
+
+        print("🧹 清理所有临时文件...")
+
+        # 清理temp目录中的所有临时文件
+        temp_patterns = [
+            'temp/temp_merged_*.mp4',
+            'temp_audio.m4a',
+            'temp/video_list.txt'
+        ]
+
+        cleaned_count = 0
+        for pattern in temp_patterns:
+            files = glob.glob(pattern)
+            for file_path in files:
+                try:
+                    os.remove(file_path)
+                    print(f"🗑️ 已删除: {file_path}")
+                    cleaned_count += 1
+                except Exception as e:
+                    print(f"⚠️ 删除失败 {file_path}: {str(e)}")
+
+        print(f"✅ 清理完成，共删除 {cleaned_count} 个临时文件")
 
 
 def create_sample_workflow():
@@ -1215,3 +1268,6 @@ def create_sample_workflow():
     print("⚠️ 请根据实际的ComfyUI配置修改此文件")
 
     return workflow_path
+
+
+

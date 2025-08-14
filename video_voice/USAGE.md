@@ -11,6 +11,8 @@
 ### 1. 检查系统依赖
 
 #### 系统依赖
+
+**FFmpeg** (视频处理)
 ```bash
 # 安装ffmpeg (macOS)
 brew install ffmpeg
@@ -23,9 +25,33 @@ sudo apt install ffmpeg
 # 下载并安装 https://ffmpeg.org/download.html
 ```
 
+**ImageMagick** (字幕文本渲染)
+```bash
+# 安装ImageMagick (macOS)
+brew install imagemagick
+
+# 安装ImageMagick (Ubuntu)
+sudo apt update
+sudo apt install imagemagick
+
+# 安装ImageMagick (Windows)
+# 下载并安装 https://imagemagick.org/script/download.php#windows
+# 或使用 Chocolatey: choco install imagemagick
+```
+
+⚠️ **重要**: ImageMagick 是字幕功能的必需依赖。如果没有安装，添加字幕时会出现错误。
+
 #### Python依赖
 ```bash
-pip install boto3 requests pydub numpy
+pip install boto3 requests pydub numpy moviepy
+```
+
+⚠️ **MoviePy 配置**: 如果 MoviePy 无法找到 ImageMagick，可能需要手动配置路径：
+```python
+# 在代码中添加（如果需要）
+import os
+os.environ['IMAGEIO_FFMPEG_EXE'] = '/usr/local/bin/ffmpeg'  # FFmpeg路径
+# ImageMagick 通常会自动检测，如果有问题请检查安装
 ```
 
 ```bash
@@ -236,15 +262,48 @@ video_voice/
 
 2. **Python包缺失**
    ```bash
-   pip install boto3 requests pydub numpy
+   pip install boto3 requests pydub numpy moviepy
    ```
 
-3. **ComfyUI连接失败**
+3. **ImageMagick未安装或配置错误**
+
+   **错误信息**: `MoviePy Error: creation of None failed because of the following error: [Errno 2] No such file or directory: 'unset'`
+
+   **解决方案**:
+   ```bash
+   # macOS
+   brew install imagemagick
+
+   # Ubuntu
+   sudo apt install imagemagick
+
+   # Windows
+   # 下载安装 https://imagemagick.org/script/download.php#windows
+   ```
+
+   **验证安装**:
+   ```bash
+   # 检查 ImageMagick 是否正确安装
+   convert -version
+   # 或
+   magick -version
+   ```
+
+4. **字幕添加失败**
+
+   **错误信息**: `index -57665 is out of bounds for axis 0 with size 42336`
+
+   **解决方案**:
+   - 检查 `temp/temp_merged_*.mp4` 文件是否正常
+   - 尝试使用修复版本的字幕函数
+   - 考虑移除强制编码参数，让 MoviePy 保持原有格式
+
+5. **ComfyUI连接失败**
    - 检查服务器URL和端口
    - 确认ComfyUI服务正在运行
    - 验证网络连接
 
-4. **GPT-SoVITS调用失败**
+6. **GPT-SoVITS调用失败**
    - 检查AWS凭证配置
    - 确认端点名称正确
    - 验证参考音频路径

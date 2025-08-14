@@ -47,6 +47,8 @@ def main():
   python run_comic_video.py --input /path/to/comics --config my_config.py
   python run_comic_video.py --input comics --output final_video.mp4 --max-images 5
   python run_comic_video.py --check-deps  # 仅检查依赖
+  python run_comic_video.py --input comics --cleanup  # 处理后清理临时文件（保留调试文件）
+  python run_comic_video.py --input comics --cleanup-all  # 处理后清理所有临时文件
         """
     )
     
@@ -103,7 +105,13 @@ def main():
     parser.add_argument(
         "--cleanup",
         action="store_true",
-        help="处理完成后清理临时文件"
+        help="处理完成后清理临时文件（保留temp_merged文件用于调试）"
+    )
+
+    parser.add_argument(
+        "--cleanup-all",
+        action="store_true",
+        help="处理完成后清理所有临时文件（包括temp_merged文件）"
     )
     
     args = parser.parse_args()
@@ -238,6 +246,14 @@ def main():
                     except Exception as e:
                         print(f"⚠️ 重命名失败: {e}")
 
+                # 清理临时文件
+                if args.cleanup_all:
+                    print("\n🧹 清理所有临时文件...")
+                    processor.cleanup_all_temp_files()
+                elif args.cleanup:
+                    print("\n🧹 清理临时文件（保留调试文件）...")
+                    processor.cleanup_temp_files()
+
                 return 0
             else:
                 print("❌ 完整流程执行失败")
@@ -283,8 +299,11 @@ def main():
             print("⚠️ 注意: 完整的视频生成功能需要配置ComfyUI和GPT-SoVITS")
 
             # 清理临时文件
-            if args.cleanup:
-                print("\n🧹 清理临时文件...")
+            if args.cleanup_all:
+                print("\n🧹 清理所有临时文件...")
+                processor.cleanup_all_temp_files()
+            elif args.cleanup:
+                print("\n🧹 清理临时文件（保留调试文件）...")
                 processor.cleanup_temp_files()
 
             return 0
