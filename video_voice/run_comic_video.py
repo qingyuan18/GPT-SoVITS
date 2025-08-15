@@ -113,6 +113,33 @@ def main():
         action="store_true",
         help="处理完成后清理所有临时文件（包括temp_merged文件）"
     )
+
+    parser.add_argument(
+        "--use-moviepy",
+        action="store_true",
+        help="使用MoviePy生成视频（而不是ComfyUI）"
+    )
+
+    parser.add_argument(
+        "--moviepy-duration",
+        type=float,
+        default=5.0,
+        help="MoviePy模式下的视频时长（秒，默认5.0）"
+    )
+
+    parser.add_argument(
+        "--moviepy-effect",
+        type=str,
+        default="random",
+        choices=["shake_zoom", "fade_zoom", "pan_zoom", "random"],
+        help="MoviePy模式下的动画效果（默认random随机选择）"
+    )
+
+    parser.add_argument(
+        "--process-selected",
+        action="store_true",
+        help="使用已有的selected_images_info.json文件通过MoviePy生成视频"
+    )
     
     args = parser.parse_args()
     
@@ -157,6 +184,17 @@ def main():
             return 0
         else:
             print("❌ 依赖检查失败")
+            return 1
+
+    # 如果指定了处理已选中图像的选项
+    if args.process_selected:
+        print("🎬 使用MoviePy处理已选中的图像")
+        final_video = processor.process_selected_images_with_moviepy()
+        if final_video:
+            print(f"🎉 处理完成！最终视频: {final_video}")
+            return 0
+        else:
+            print("❌ 处理失败")
             return 1
     
     # 检查输入目录
@@ -228,10 +266,16 @@ def main():
         has_comfyui = bool(processor.comfyui_server_url and processor.comfyui_workflow_path)
         has_gpt_sovits = bool(processor.gpt_sovits_endpoint and processor.reference_audio_path)
 
-        if has_comfyui and has_gpt_sovits:
+        if (has_comfyui or args.use_moviepy) and has_gpt_sovits:
             # 执行完整流程
-            print("\n🎬 执行完整的漫画转视频配音流程")
-            final_video = processor.process_comic_to_video_voice(args.input)
+            video_method = "MoviePy" if args.use_moviepy else "ComfyUI"
+            print(f"\n🎬 执行完整的漫画转视频配音流程（使用{video_method}）")
+            final_video = processor.process_comic_to_video_voice(
+                args.input,
+                use_comfyui=not args.use_moviepy,
+                moviepy_duration=args.moviepy_duration,
+                moviepy_effect=args.moviepy_effect
+            )
 
             if final_video:
                 print(f"\n🎉 完整流程成功完成！")

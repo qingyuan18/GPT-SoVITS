@@ -64,15 +64,127 @@ class ComicVideoProcessor:
         
         # 创建必要的目录
         self._create_directories()
-    
+
     def _create_directories(self):
         """创建必要的目录结构"""
         directories = [
-            'input_images', 'output_videos', 'output_audio', 
+            'input_images', 'output_videos', 'output_audio',
             'final_videos', 'temp'
         ]
         for directory in directories:
             os.makedirs(directory, exist_ok=True)
+
+    def generate_video_from_image_moviepy(self, image_path: str, video_prompt: str, output_path: str,
+                                         duration: float = 5.0, effect: str = "shake_zoom") -> bool:
+        """
+        使用MoviePy从图像生成动画视频
+
+        Args:
+            image_path: 输入图像路径
+            video_prompt: 视频生成提示词（用于记录，不直接影响生成）
+            output_path: 输出视频路径
+            duration: 视频时长（秒）
+            effect: 动画效果类型
+
+        Returns:
+            是否成功生成视频
+        """
+        try:
+            from moviepy.editor import ImageClip
+            import numpy as np
+            import random
+
+            # 如果效果是random，随机选择一个效果
+            if effect == "random":
+                available_effects = ["shake_zoom", "fade_zoom", "pan_zoom"]
+                effect = random.choice(available_effects)
+
+            print(f"🎬 使用MoviePy生成动画视频: {os.path.basename(image_path)}")
+            print(f"📝 视频提示词: {video_prompt}")
+            print(f"⏱️ 时长: {duration}秒, 效果: {effect}")
+
+            # 加载图像
+            clip = ImageClip(image_path, duration=duration)
+
+            # 应用动画效果
+            if effect == "shake_zoom":
+                # 震动+缩放效果
+                def shake_zoom_effect(get_frame, t):
+                    frame = get_frame(t)
+
+                    # 计算震动偏移
+                    shake_intensity = 5
+                    shake_x = int(shake_intensity * np.sin(t * 20))
+                    shake_y = int(shake_intensity * np.cos(t * 15))
+
+                    # 应用震动（通过填充实现）
+                    if abs(shake_x) < frame.shape[1]//4 and abs(shake_y) < frame.shape[0]//4:
+                        # 创建新的frame
+                        new_frame = np.zeros_like(frame)
+
+                        # 计算源和目标区域
+                        src_y1 = max(0, -shake_y)
+                        src_y2 = min(frame.shape[0], frame.shape[0] - shake_y)
+                        src_x1 = max(0, -shake_x)
+                        src_x2 = min(frame.shape[1], frame.shape[1] - shake_x)
+
+                        dst_y1 = max(0, shake_y)
+                        dst_y2 = dst_y1 + (src_y2 - src_y1)
+                        dst_x1 = max(0, shake_x)
+                        dst_x2 = dst_x1 + (src_x2 - src_x1)
+
+                        new_frame[dst_y1:dst_y2, dst_x1:dst_x2] = frame[src_y1:src_y2, src_x1:src_x2]
+                        return new_frame
+
+                    return frame
+
+                clip = clip.fl(shake_zoom_effect)
+
+            elif effect == "fade_zoom":
+                # 淡入淡出+缩放效果
+                clip = clip.fadein(0.5).fadeout(0.5)
+
+            # 设置帧率
+            clip = clip.set_fps(16)
+
+            # 写入视频文件
+            clip.write_videofile(output_path, codec='libx264', audio=False, verbose=False, logger=None)
+
+            # 清理资源
+            clip.close()
+
+            print(f"✅ MoviePy视频已保存: {output_path}")
+            return True
+
+        except Exception as e:
+            print(f"❌ MoviePy视频生成失败: {str(e)}")
+            return False
+
+    def generate_video_with_option(self, image_path: str, video_prompt: str, output_path: str,
+                                  use_comfyui: bool = True, duration: float = 5.0, effect: str = "shake_zoom") -> bool:
+        """
+        根据选项使用ComfyUI或MoviePy生成视频
+
+        Args:
+            image_path: 输入图像路径
+            video_prompt: 视频生成提示词
+            output_path: 输出视频路径
+            use_comfyui: 是否使用ComfyUI（True）或MoviePy（False）
+            duration: MoviePy模式下的视频时长
+            effect: MoviePy模式下的动画效果
+
+        Returns:
+            是否成功生成视频
+        """
+        if use_comfyui and self.comfyui_server_url and self.comfyui_workflow_path:
+            print(f"🎬 使用ComfyUI生成视频")
+            return self.generate_video_from_image(image_path, video_prompt, output_path)
+        else:
+            if use_comfyui:
+                print(f"⚠️ ComfyUI配置不完整，切换到MoviePy模式")
+            else:
+                print(f"🎬 使用MoviePy生成视频")
+            return self.generate_video_from_image_moviepy(image_path, video_prompt, output_path, duration, effect)
     
     def analyze_comic_images_batch(self, image_paths: List[str], batch_index: int = 0) -> Dict:
         """
@@ -865,10 +977,29 @@ class ComicVideoProcessor:
             else:  # center
                 subtitle_position = ('center', 'center')
 
+            # 文本换行处理，确保不超过屏幕宽度
+            def wrap_text_for_video(text: str, max_chars_per_line: int = 20) -> str:
+                if len(text) <= max_chars_per_line:
+                    return text
+                lines = []
+                current_line = ""
+                for char in text:
+                    if len(current_line) >= max_chars_per_line:
+                        lines.append(current_line)
+                        current_line = char
+                    else:
+                        current_line += char
+                if current_line:
+                    lines.append(current_line)
+                return '\n'.join(lines)
+
+            # 处理字幕文本换行
+            wrapped_text = wrap_text_for_video(subtitle_text, max_chars_per_line=20)
+
             # 创建字幕文本片段
             if font_file:
                 subtitle_clip = TextClip(
-                    text=subtitle_text,
+                    text=wrapped_text,
                     font_size=font_size,
                     color=font_color,
                     font=font_file,
@@ -877,7 +1008,7 @@ class ComicVideoProcessor:
                 ).with_position(position).with_duration(video.duration)
             else:
                 subtitle_clip = TextClip(
-                    subtitle_text,
+                    wrapped_text,
                     fontsize=font_size,
                     color=font_color
                 ).set_position(subtitle_position).set_duration(video.duration)
@@ -1304,7 +1435,8 @@ class ComicVideoProcessor:
             print(f"❌ 视频标准化出错: {str(e)}")
             return False
 
-    def process_comic_to_video_voice(self, input_directory: str) -> str:
+    def process_comic_to_video_voice(self, input_directory: str, use_comfyui: bool = True,
+                                   moviepy_duration: float = 5.0, moviepy_effect: str = "shake_zoom") -> str:
         """
         完整的漫画转视频配音流程
 
@@ -1350,7 +1482,7 @@ class ComicVideoProcessor:
             video_prompt = analysis.get('video_prompt', 'animate the comic scene')
 
             print(f"\n🎥 生成视频 {i+1}/{len(successful_results)}")
-            if self.generate_video_from_image(image_path, video_prompt, video_path):
+            if self.generate_video_with_option(image_path, video_prompt, video_path, use_comfyui, moviepy_duration, moviepy_effect):
                 video_files.append(video_path)
                 # 收集音频脚本（使用新的combined_audio_script字段）
                 audio_script = analysis.get('combined_audio_script', '')
@@ -1433,8 +1565,151 @@ class ComicVideoProcessor:
             print(f"  • 生成语音: {len([a for a in audio_files if a])}")
 
             return final_output
-        else:
-            print("❌ 最终视频拼接失败")
+
+    def process_selected_images_with_moviepy(self, selected_images_file: str = 'temp/selected_images_info.json') -> str:
+        """
+        使用selected_images_info.json文件中的信息，通过MoviePy生成视频
+
+        Args:
+            selected_images_file: 选中图像信息文件路径
+
+        Returns:
+            最终输出视频路径
+        """
+        print("🎬 使用MoviePy处理选中图像生成视频")
+        print("="*60)
+
+        if not os.path.exists(selected_images_file):
+            print(f"❌ 文件不存在: {selected_images_file}")
+            return None
+
+        try:
+            # 读取选中图像信息
+            with open(selected_images_file, 'r', encoding='utf-8') as f:
+                selected_images_info = json.load(f)
+
+            print(f"📖 读取到 {len(selected_images_info)} 个批次的信息")
+
+            video_files = []
+            audio_scripts = []
+
+            # 为每个批次生成视频
+            for i, batch_info in enumerate(selected_images_info):
+                print(f"\n🎥 处理批次 {i+1}/{len(selected_images_info)}")
+
+                # 获取批次信息
+                image_path = batch_info.get('selected_image_path', '')
+                analysis = batch_info.get('analysis', {})
+                video_prompt = analysis.get('video_prompt', 'Two people\'s first encounter and tension')
+                narration = analysis.get('combined_audio_script', f'第{i+1}个场景')
+
+                # 构建MoviePy配置
+                moviepy_config = {
+                    "image": image_path,
+                    "duration": 5,
+                    "narration": narration,
+                    "effect": "random"
+                }
+
+                print(f"📁 图像路径: {os.path.basename(image_path)}")
+                print(f"⏱️ 时长: {moviepy_config['duration']}秒")
+                print(f"🎭 效果: {moviepy_config['effect']}")
+                print(f"📝 旁白: {moviepy_config['narration'][:50]}...")
+
+                # 生成视频文件名
+                video_filename = f"moviepy_video_{i:03d}.mp4"
+                video_path = os.path.join('output_videos', video_filename)
+
+                # 使用MoviePy生成视频
+                if self.generate_video_from_image_moviepy(
+                    image_path=moviepy_config['image'],
+                    video_prompt=video_prompt,
+                    output_path=video_path,
+                    duration=moviepy_config['duration'],
+                    effect=moviepy_config['effect']
+                ):
+                    video_files.append(video_path)
+                    audio_scripts.append(moviepy_config['narration'])
+                    print(f"✅ 视频生成成功: {video_filename}")
+                else:
+                    print(f"❌ 视频生成失败: {video_filename}")
+
+            if not video_files:
+                print("❌ 没有成功生成的视频")
+                return None
+
+            print(f"\n✅ 成功生成 {len(video_files)} 个视频")
+
+            # 生成语音（如果配置了GPT-SoVITS）
+            audio_files = []
+            if self.gpt_sovits_endpoint and self.reference_audio_path:
+                print("\n🔊 生成语音")
+                for i, script in enumerate(audio_scripts):
+                    audio_filename = f"moviepy_audio_{i:03d}.wav"
+                    audio_path = os.path.join('output_audio', audio_filename)
+
+                    print(f"\n🎙️ 生成语音 {i+1}/{len(audio_scripts)}")
+                    if self.generate_audio_from_text(output_path=audio_path, prompt_text=script):
+                        audio_files.append(audio_path)
+                    else:
+                        audio_files.append(None)
+            else:
+                print("\n⚠️ 跳过语音生成（GPT-SoVITS未配置）")
+                audio_files = [None] * len(video_files)
+
+            # 合并视频、音频并添加字幕
+            print("\n🎞️ 合并视频、音频并添加字幕")
+            final_video_files = []
+
+            for i, (video_path, audio_path) in enumerate(zip(video_files, audio_files)):
+                final_filename = f"moviepy_final_{i:03d}.mp4"
+                final_path = os.path.join('final_videos', final_filename)
+
+                subtitle_text = audio_scripts[i] if i < len(audio_scripts) else ""
+
+                if audio_path and os.path.exists(audio_path):
+                    print(f"\n🎬 合并视频音频并添加字幕 {i+1}/{len(video_files)}")
+                    if self.merge_video_audio_with_subtitles(video_path, audio_path, subtitle_text, final_path):
+                        final_video_files.append(final_path)
+                    else:
+                        print(f"⚠️ 合并失败，尝试仅添加字幕")
+                        if subtitle_text and self.add_subtitles_to_video(video_path, subtitle_text, final_path):
+                            final_video_files.append(final_path)
+                        else:
+                            final_video_files.append(video_path)
+                else:
+                    print(f"⚠️ 没有对应音频，仅添加字幕 {i+1}/{len(video_files)}")
+                    if subtitle_text and self.add_subtitles_to_video(video_path, subtitle_text, final_path):
+                        final_video_files.append(final_path)
+                    else:
+                        final_video_files.append(video_path)
+
+            # 拼接所有视频
+            print("\n🎬 拼接最终视频")
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            final_output = os.path.join('final_videos', f"moviepy_comic_video_{timestamp}.mp4")
+
+            if self.concatenate_videos(final_video_files, final_output):
+                print(f"\n🎉 MoviePy流程完成！")
+                print(f"📁 最终视频: {final_output}")
+
+                # 显示统计信息
+                total_duration = sum(self.get_video_duration(vf) for vf in final_video_files if os.path.exists(vf))
+                print(f"⏱️ 总时长: {total_duration:.2f} 秒")
+                print(f"📊 处理统计:")
+                print(f"  • 输入批次: {len(selected_images_info)}")
+                print(f"  • 生成视频: {len(video_files)}")
+                print(f"  • 生成语音: {len([a for a in audio_files if a])}")
+                print(f"  • 最终视频位置: final_videos/ 目录")
+
+                return final_output
+            else:
+                print("❌ 最终视频拼接失败")
+                return None
+
+        except Exception as e:
+            print(f"❌ 处理过程中发生错误: {str(e)}")
             return None
 
     def cleanup_temp_files(self):

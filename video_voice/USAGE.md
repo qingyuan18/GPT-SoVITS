@@ -2,9 +2,26 @@
 
 本系统实现了一个完整的流程：
 1. 使用Bedrock Nova多模态模型提取漫画图像关键内容
-2. 调用ComfyUI接口进行图生视频
+2. 调用ComfyUI接口进行图生视频 **或** 使用MoviePy生成图像动画视频
 3. 通过GPT-SoVITS接口生成语音
 4. 合并视频和音频
+
+## 🎬 视频生成方式
+
+系统支持两种视频生成方式：
+
+### ComfyUI模式
+- ✅ 高质量AI生成视频
+- ✅ 复杂的视觉效果和动画
+- ❌ 需要配置ComfyUI服务
+- ❌ 处理时间较长
+
+### MoviePy模式
+- ✅ 快速生成动画视频
+- ✅ 无需外部服务依赖
+- ✅ 轻量级处理
+- ✅ 多种动画效果（震动缩放、淡入淡出、平移缩放）
+- ❌ 动画效果相对简单
 
 ## 🚀 快速开始
 
@@ -107,9 +124,19 @@ mkdir -p input_images
 
 ### 4. 运行处理流程
 
-#### 完整流程（需要完整配置）
+#### 完整流程（ComfyUI模式，需要完整配置）
 ```bash
 python3 run_comic_video.py --input input_images
+```
+
+#### 完整流程（MoviePy模式，无需ComfyUI配置）
+```bash
+python3 run_comic_video.py --input input_images --use-moviepy
+```
+
+#### 使用已有分析结果生成视频（MoviePy模式）
+```bash
+python3 run_comic_video.py --input input_images --process-selected
 ```
 
 #### 仅图像分析（无需ComfyUI和GPT-SoVITS配置）
@@ -138,6 +165,26 @@ python3 run_comic_video.py --input input_images --output my_comic_video.mp4
 python3 run_comic_video.py --input input_images --verbose
 ```
 
+#### MoviePy模式的高级选项
+```bash
+# 指定视频时长（默认5秒）
+python3 run_comic_video.py --input input_images --use-moviepy --moviepy-duration 8.0
+
+# 指定动画效果（可选，默认随机选择）
+python3 run_comic_video.py --input input_images --use-moviepy --moviepy-effect shake_zoom
+
+# 使用随机效果（默认行为）
+python3 run_comic_video.py --input input_images --use-moviepy --moviepy-effect random
+
+# 组合使用
+python3 run_comic_video.py --input input_images --use-moviepy --moviepy-duration 6.0 --moviepy-effect fade_zoom
+```
+
+**支持的动画效果：**
+- `shake_zoom` - 震动+缩放效果
+- `fade_zoom` - 淡入淡出+缩放效果
+- `pan_zoom` - 平移+缩放效果
+
 #### 处理完成后清理临时文件
 ```bash
 python3 run_comic_video.py --input input_images --cleanup
@@ -152,7 +199,9 @@ python3 run_comic_video.py --input input_images --cleanup
 
 ## 🔧 配置说明
 
-### ComfyUI配置
+### 视频生成配置
+
+#### ComfyUI配置
 
 1. **服务器地址**: 确保ComfyUI服务正在运行
 2. **工作流文件**: 根据你的ComfyUI配置调整 `sample_workflow.json`
@@ -172,6 +221,36 @@ python3 run_comic_video.py --input input_images --cleanup
   }
 }
 ```
+
+#### MoviePy配置
+
+MoviePy模式无需外部服务配置，但可以通过以下方式自定义：
+
+**命令行参数：**
+```bash
+# 使用MoviePy模式
+--use-moviepy
+
+# 设置视频时长（秒）
+--moviepy-duration 5.0
+
+# 指定动画效果（可选，默认随机选择）
+--moviepy-effect shake_zoom
+```
+
+**Notebook配置：**
+```python
+# 视频生成配置
+USE_COMFYUI = False  # 设为False使用MoviePy
+MOVIEPY_DURATION = 5.0  # 视频时长
+MOVIEPY_EFFECT = "random"  # 随机选择动画效果
+```
+
+**支持的动画效果：**
+- `shake_zoom` - 震动+缩放效果，适合动作场景
+- `fade_zoom` - 淡入淡出+缩放效果，适合情感场景
+- `pan_zoom` - 平移+缩放效果，适合风景场景
+- `random` - 随机选择上述效果之一
 
 ### GPT-SoVITS配置
 
@@ -206,9 +285,11 @@ video_voice/
 
 #### 完整流程（5个步骤）
 1. **图像分析**: 使用Bedrock Nova批量分析漫画内容，每批次选择最佳图像
-2. **视频生成**: 通过ComfyUI从选中图像生成动态视频
+2. **视频生成**: 通过ComfyUI或MoviePy从选中图像生成动态视频
+   - **ComfyUI模式**: AI生成高质量视频
+   - **MoviePy模式**: 快速生成图像动画（随机选择动画效果）
 3. **语音合成**: 使用GPT-SoVITS根据分析结果生成配音
-4. **视频合成**: 合并视频和音频文件
+4. **视频合成**: 合并视频和音频文件，添加自动换行字幕
 5. **最终输出**: 拼接所有视频片段为完整视频
 
 #### 仅分析模式（1个步骤）
@@ -308,6 +389,17 @@ video_voice/
    - 确认端点名称正确
    - 验证参考音频路径
 
+7. **MoviePy视频生成失败**
+   - 检查图像文件格式和大小
+   - 确认输出目录有写入权限
+   - 验证FFmpeg安装是否正确
+   - 检查内存使用情况（大图像可能需要更多内存）
+
+8. **动画效果不理想**
+   - 尝试不同的动画效果：`shake_zoom`, `fade_zoom`, `pan_zoom`
+   - 调整视频时长参数
+   - 使用`random`效果让系统自动选择最适合的效果
+
 ### 调试模式
 
 启用详细日志：
@@ -380,6 +472,15 @@ PERFORMANCE = {
 3. **资源监控**: 注意内存和存储使用情况
 4. **错误处理**: 启用错误继续处理模式
 5. **备份结果**: 保存重要的中间结果
+
+### MoviePy模式最佳实践
+
+6. **快速原型**: 使用MoviePy模式进行快速原型制作和测试
+7. **效果选择**:
+   - 使用`random`效果获得多样化的视觉效果
+   - 对特定场景使用特定效果（动作场景用`shake_zoom`，情感场景用`fade_zoom`）
+8. **性能优化**: MoviePy模式处理速度更快，适合大批量处理
+9. **混合使用**: 可以先用MoviePy快速生成预览，再用ComfyUI生成最终高质量版本
 
 ## 📞 获取帮助
 

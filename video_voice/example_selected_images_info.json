@@ -1,0 +1,44 @@
+[
+  {
+    "batch_id": 1,
+    "selected_image_path": "input_images/page_001.png",
+    "selected_index": 0,
+    "analysis": {
+      "overall_analysis": {
+        "main_theme": "Two characters meeting for the first time in a dramatic setting",
+        "emotional_tone": "tense, anticipatory",
+        "visual_style": "manga style with detailed backgrounds"
+      },
+      "video_prompt": "Two people's first encounter and tension, dramatic lighting, manga style animation",
+      "combined_audio_script": "在这个充满紧张气氛的场景中，两个人物首次相遇，空气中弥漫着不安的情绪。"
+    }
+  },
+  {
+    "batch_id": 2,
+    "selected_image_path": "input_images/page_002.png",
+    "selected_index": 1,
+    "analysis": {
+      "overall_analysis": {
+        "main_theme": "Intense dialogue between characters",
+        "emotional_tone": "confrontational, heated",
+        "visual_style": "close-up shots with dramatic expressions"
+      },
+      "video_prompt": "Heated conversation with dramatic facial expressions, close-up shots, emotional intensity",
+      "combined_audio_script": "激烈的对话在两人之间展开，每个表情都充满了戏剧性的张力。"
+    }
+  },
+  {
+    "batch_id": 3,
+    "selected_image_path": "input_images/page_003.png",
+    "selected_index": 2,
+    "analysis": {
+      "overall_analysis": {
+        "main_theme": "Action sequence with dynamic movement",
+        "emotional_tone": "exciting, fast-paced",
+        "visual_style": "dynamic action lines and motion blur effects"
+      },
+      "video_prompt": "Fast-paced action sequence with dynamic movement, motion lines, exciting combat",
+      "combined_audio_script": "快节奏的动作场面展开，充满了动感和刺激的战斗元素。"
+    }
+  }
+]
