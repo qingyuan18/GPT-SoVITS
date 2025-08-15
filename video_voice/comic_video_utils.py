@@ -840,7 +840,7 @@ class ComicVideoProcessor:
             是否成功添加字幕
         """
         try:
-            from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+            from moviepy import VideoFileClip, TextClip, CompositeVideoClip
             import shutil
 
             # 设置FFmpeg环境变量
@@ -868,11 +868,13 @@ class ComicVideoProcessor:
             # 创建字幕文本片段
             if font_file:
                 subtitle_clip = TextClip(
-                    subtitle_text,
-                    fontsize=font_size,
+                    text=subtitle_text,
+                    font_size=font_size,
                     color=font_color,
-                    font=font_file
-                ).set_position(subtitle_position).set_duration(video.duration)
+                    font=font_file,
+                    margin=(20,20),
+                    text_align='center'
+                ).with_position(position).with_duration(video.duration)
             else:
                 subtitle_clip = TextClip(
                     subtitle_text,
@@ -888,15 +890,7 @@ class ComicVideoProcessor:
             print(f"💬 字幕内容: {subtitle_text[:50]}{'...' if len(subtitle_text) > 50 else ''}")
 
             # 写入输出文件
-            final_video.write_videofile(
-                output_path,
-                codec='libx264',
-                audio_codec='aac',
-                temp_audiofile='temp_audio.m4a',
-                remove_temp=True,
-                verbose=False,
-                logger=None
-            )
+            final_video.write_videofile(output_path)
 
             # 清理资源
             video.close()
@@ -942,13 +936,14 @@ class ComicVideoProcessor:
             print(f"❌ 合并视频音频并添加字幕失败: {str(e)}")
             return False
 
-    def concatenate_videos(self, video_paths: List[str], output_path: str) -> bool:
+    def concatenate_videos(self, video_paths: List[str], output_path: str, force_reencode: bool = None) -> bool:
         """
         拼接多个视频文件
 
         Args:
             video_paths: 视频文件路径列表
             output_path: 输出文件路径
+            force_reencode: 是否强制重新编码（None=自动检测，True=强制，False=不重新编码）
 
         Returns:
             是否成功拼接
@@ -969,13 +964,37 @@ class ComicVideoProcessor:
                 return False
 
         try:
+            # 检查视频兼容性
+            compatibility_check = self.check_videos_compatibility(video_paths)
+
+            # 决定是否需要重新编码
+            need_reencode = force_reencode
+            if need_reencode is None:
+                need_reencode = not compatibility_check.get('compatible', False)
+
+            if need_reencode:
+                print("🔄 检测到视频参数不一致，将使用重新编码模式")
+                return self._concatenate_videos_with_reencode(video_paths, output_path, compatibility_check)
+            else:
+                print("✅ 视频参数兼容，使用快速拼接模式")
+                return self._concatenate_videos_fast(video_paths, output_path)
+
+        except Exception as e:
+            print(f"❌ 拼接过程出错: {str(e)}")
+            return False
+
+    def _concatenate_videos_fast(self, video_paths: List[str], output_path: str) -> bool:
+        """
+        快速拼接模式（直接复制流，适用于参数一致的视频）
+        """
+        try:
             # 创建临时文件列表
             temp_list_file = os.path.join('temp', 'video_list.txt')
             with open(temp_list_file, 'w') as f:
                 for video_path in video_paths:
                     # 使用绝对路径避免路径问题
                     abs_path = os.path.abspath(video_path)
-                    f.write(f"file '{abs_path}'\\n")
+                    f.write(f"file '{abs_path}'\n")
 
             cmd = [
                 'ffmpeg',
@@ -983,11 +1002,13 @@ class ComicVideoProcessor:
                 '-safe', '0',
                 '-i', temp_list_file,
                 '-c', 'copy',
+                '-avoid_negative_ts', 'make_zero',  # 避免负时间戳
+                '-fflags', '+genpts',  # 重新生成时间戳
                 '-y',  # 覆盖输出文件
                 output_path
             ]
 
-            print(f"🎬 拼接 {len(video_paths)} 个视频文件")
+            print(f"🎬 快速拼接 {len(video_paths)} 个视频文件")
             for i, path in enumerate(video_paths, 1):
                 print(f"  {i}. {os.path.basename(path)}")
 
@@ -1001,11 +1022,83 @@ class ComicVideoProcessor:
                 print(f"✅ 视频拼接完成: {output_path}")
                 return True
             else:
-                print(f"❌ 视频拼接失败: {result.stderr}")
+                print(f"❌ 快速拼接失败: {result.stderr}")
+                print("🔄 尝试重新编码模式...")
+                return self._concatenate_videos_with_reencode(video_paths, output_path, None)
+
+        except Exception as e:
+            print(f"❌ 快速拼接出错: {str(e)}")
+            return False
+
+    def _concatenate_videos_with_reencode(self, video_paths: List[str], output_path: str, compatibility_check: Dict = None) -> bool:
+        """
+        重新编码拼接模式（确保参数一致性，解决卡顿问题）
+        """
+        try:
+            # 获取参考视频信息
+            if compatibility_check and compatibility_check.get('reference_info'):
+                ref_info = compatibility_check['reference_info']
+                target_fps = ref_info['fps']
+                target_width = ref_info['width']
+                target_height = ref_info['height']
+            else:
+                # 使用第一个视频作为参考
+                first_info = self.get_video_info(video_paths[0])
+                if not first_info.get('success'):
+                    print("❌ 无法获取参考视频信息")
+                    return False
+                target_fps = first_info['fps']
+                target_width = first_info['width']
+                target_height = first_info['height']
+
+            print(f"🎯 目标参数: {target_width}x{target_height} @ {target_fps:.2f}fps")
+
+            # 创建临时文件列表
+            temp_list_file = os.path.join('temp', 'video_list.txt')
+            with open(temp_list_file, 'w') as f:
+                for video_path in video_paths:
+                    abs_path = os.path.abspath(video_path)
+                    f.write(f"file '{abs_path}'\n")
+
+            cmd = [
+                'ffmpeg',
+                '-f', 'concat',
+                '-safe', '0',
+                '-i', temp_list_file,
+                '-c:v', 'libx264',  # 使用H.264编码
+                '-preset', 'medium',  # 编码速度和质量平衡
+                '-crf', '23',  # 质量设置
+                '-r', str(target_fps),  # 统一帧率
+                '-s', f'{target_width}x{target_height}',  # 统一分辨率
+                '-pix_fmt', 'yuv420p',  # 统一像素格式
+                '-c:a', 'aac',  # 音频编码
+                '-b:a', '128k',  # 音频比特率
+                '-avoid_negative_ts', 'make_zero',
+                '-fflags', '+genpts',
+                '-vsync', 'cfr',  # 恒定帧率
+                '-y',
+                output_path
+            ]
+
+            print(f"🔄 重新编码拼接 {len(video_paths)} 个视频文件")
+            for i, path in enumerate(video_paths, 1):
+                print(f"  {i}. {os.path.basename(path)}")
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+
+            # 清理临时文件
+            if os.path.exists(temp_list_file):
+                os.remove(temp_list_file)
+
+            if result.returncode == 0:
+                print(f"✅ 重新编码拼接完成: {output_path}")
+                return True
+            else:
+                print(f"❌ 重新编码拼接失败: {result.stderr}")
                 return False
 
         except Exception as e:
-            print(f"❌ 拼接过程出错: {str(e)}")
+            print(f"❌ 重新编码拼接出错: {str(e)}")
             return False
 
     def get_video_duration(self, video_path: str) -> float:
@@ -1040,7 +1133,176 @@ class ComicVideoProcessor:
             print(f"❌ 获取视频时长出错: {str(e)}")
             return 0.0
 
+    def get_video_info(self, video_path: str) -> Dict:
+        """
+        获取视频详细信息（分辨率、帧率、编码格式等）
 
+        Args:
+            video_path: 视频文件路径
+
+        Returns:
+            包含视频信息的字典
+        """
+        try:
+            cmd = [
+                'ffprobe',
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_streams',
+                '-show_format',
+                video_path
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                info = json.loads(result.stdout)
+
+                # 查找视频流
+                video_stream = None
+                for stream in info.get('streams', []):
+                    if stream.get('codec_type') == 'video':
+                        video_stream = stream
+                        break
+
+                if video_stream:
+                    # 解析帧率
+                    fps_str = video_stream.get('r_frame_rate', '0/1')
+                    if '/' in fps_str:
+                        num, den = fps_str.split('/')
+                        fps = float(num) / float(den) if float(den) != 0 else 0
+                    else:
+                        fps = float(fps_str)
+
+                    return {
+                        'success': True,
+                        'duration': float(info['format'].get('duration', 0)),
+                        'width': int(video_stream.get('width', 0)),
+                        'height': int(video_stream.get('height', 0)),
+                        'fps': fps,
+                        'codec': video_stream.get('codec_name', ''),
+                        'pixel_format': video_stream.get('pix_fmt', ''),
+                        'bitrate': int(info['format'].get('bit_rate', 0)),
+                        'time_base': video_stream.get('time_base', ''),
+                        'avg_frame_rate': video_stream.get('avg_frame_rate', ''),
+                        'r_frame_rate': video_stream.get('r_frame_rate', '')
+                    }
+                else:
+                    return {'success': False, 'error': '未找到视频流'}
+            else:
+                return {'success': False, 'error': result.stderr}
+
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def check_videos_compatibility(self, video_paths: List[str]) -> Dict:
+        """
+        检查多个视频文件的兼容性
+
+        Args:
+            video_paths: 视频文件路径列表
+
+        Returns:
+            兼容性检查结果
+        """
+        if not video_paths:
+            return {'compatible': False, 'error': '没有视频文件'}
+
+        print("🔍 检查视频兼容性...")
+
+        video_infos = []
+        for i, video_path in enumerate(video_paths):
+            print(f"  📹 检查视频 {i+1}/{len(video_paths)}: {os.path.basename(video_path)}")
+            info = self.get_video_info(video_path)
+            if info.get('success'):
+                video_infos.append(info)
+                print(f"    ✅ {info['width']}x{info['height']} @ {info['fps']:.2f}fps, {info['codec']}")
+            else:
+                print(f"    ❌ 获取信息失败: {info.get('error', 'Unknown error')}")
+                return {'compatible': False, 'error': f'无法获取视频信息: {video_path}'}
+
+        if not video_infos:
+            return {'compatible': False, 'error': '没有有效的视频信息'}
+
+        # 检查关键参数是否一致
+        first_video = video_infos[0]
+        issues = []
+
+        for i, info in enumerate(video_infos[1:], 1):
+            if info['width'] != first_video['width'] or info['height'] != first_video['height']:
+                issues.append(f"视频 {i+1} 分辨率不匹配: {info['width']}x{info['height']} vs {first_video['width']}x{first_video['height']}")
+
+            if abs(info['fps'] - first_video['fps']) > 0.1:
+                issues.append(f"视频 {i+1} 帧率不匹配: {info['fps']:.2f} vs {first_video['fps']:.2f}")
+
+            if info['codec'] != first_video['codec']:
+                issues.append(f"视频 {i+1} 编码格式不匹配: {info['codec']} vs {first_video['codec']}")
+
+        compatible = len(issues) == 0
+
+        result = {
+            'compatible': compatible,
+            'video_infos': video_infos,
+            'reference_info': first_video,
+            'issues': issues
+        }
+
+        if compatible:
+            print("  ✅ 所有视频参数兼容")
+        else:
+            print("  ⚠️ 发现兼容性问题:")
+            for issue in issues:
+                print(f"    • {issue}")
+
+        return result
+
+    def normalize_video_for_concat(self, input_path: str, output_path: str, target_fps: float = 24.0,
+                                 target_width: int = 1024, target_height: int = 1024) -> bool:
+        """
+        标准化视频参数以便拼接
+
+        Args:
+            input_path: 输入视频路径
+            output_path: 输出视频路径
+            target_fps: 目标帧率
+            target_width: 目标宽度
+            target_height: 目标高度
+
+        Returns:
+            是否成功标准化
+        """
+        try:
+            cmd = [
+                'ffmpeg',
+                '-i', input_path,
+                '-c:v', 'libx264',
+                '-preset', 'medium',
+                '-crf', '23',
+                '-r', str(target_fps),
+                '-s', f'{target_width}x{target_height}',
+                '-pix_fmt', 'yuv420p',
+                '-c:a', 'aac',
+                '-b:a', '128k',
+                '-avoid_negative_ts', 'make_zero',
+                '-fflags', '+genpts',
+                '-vsync', 'cfr',
+                '-y',
+                output_path
+            ]
+
+            print(f"🔧 标准化视频: {os.path.basename(input_path)} -> {target_width}x{target_height}@{target_fps}fps")
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+
+            if result.returncode == 0:
+                print(f"✅ 视频标准化完成: {output_path}")
+                return True
+            else:
+                print(f"❌ 视频标准化失败: {result.stderr}")
+                return False
+
+        except Exception as e:
+            print(f"❌ 视频标准化出错: {str(e)}")
+            return False
 
     def process_comic_to_video_voice(self, input_directory: str) -> str:
         """

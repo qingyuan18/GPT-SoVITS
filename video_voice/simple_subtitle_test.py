@@ -5,7 +5,7 @@
 
 import os
 import sys
-from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy import VideoFileClip, TextClip, CompositeVideoClip
 
 
 def add_simple_subtitle(video_path, output_path, subtitle_text, font='./yahei.ttf'):
@@ -29,14 +29,14 @@ def add_simple_subtitle(video_path, output_path, subtitle_text, font='./yahei.tt
         
         # 创建字幕 (MoviePy 1.0.3 语法)
         txt_clip = TextClip(
-            subtitle_text,  # 第一个参数直接是文本
-            fontsize=50,    # 注意是 fontsize 不是 font_size
+            text=subtitle_text,  # 第一个参数直接是文本
+            font_size=10,    # 注意是 fontsize 不是 font_size
             color='white',
-            font=font
-        )
+            font='./yahei.ttf',  # 使用系统字体\n
+            margin=(20,20),
+            text_align='center'
+        ).with_position("bottom").with_duration(video.duration)
         
-        # 设置字幕位置和时长 (MoviePy 1.0.3 语法)
-        txt_clip = txt_clip.set_position('bottom').set_duration(video.duration)
         
         # 合成视频
         final_video = CompositeVideoClip([video, txt_clip])
@@ -46,7 +46,7 @@ def add_simple_subtitle(video_path, output_path, subtitle_text, font='./yahei.tt
         
         # 输出视频
         print(f"🎬 正在渲染视频...")
-        final_video.write_videofile(output_path, verbose=False, logger=None)
+        final_video.write_videofile(output_path)
         
         # 清理资源
         video.close()
@@ -94,12 +94,12 @@ def add_timed_captions(video_path, output_path, captions, font='./yahei.ttf'):
             print(f"  字幕 {i+1}: '{text}' ({start_time}s - {end_time}s)")
             
             txt_clip = TextClip(
-                text,           # 第一个参数直接是文本
-                fontsize=50,    # 注意是 fontsize 不是 font_size
+                text=text,           # 第一个参数直接是文本
+                font_size=15,    # 注意是 fontsize 不是 font_size
                 color='white',
                 font=font
             )
-            txt_clip = txt_clip.set_position('bottom').set_start(start_time).set_end(end_time)
+            txt_clip = txt_clip.with_position('bottom').with_start(start_time).with_end(end_time)
             txt_clips.append(txt_clip)
         
         # Combine video and all text clips
@@ -110,7 +110,7 @@ def add_timed_captions(video_path, output_path, captions, font='./yahei.ttf'):
         
         # Write output video
         print(f"🎬 正在渲染视频...")
-        final_video.write_videofile(output_path, verbose=False, logger=None)
+        final_video.write_videofile(output_path)
         
         # Close clips
         video.close()
@@ -130,7 +130,7 @@ def main():
     print("=" * 50)
     
     # 查找测试视频
-    video_path = "./temp/temp_merged_6cea6984.mp4"
+    video_path = "./temp/temp_merged_e3d32376.mp4"
     
     if not video_path:
         print("❌ 未找到测试视频文件")
